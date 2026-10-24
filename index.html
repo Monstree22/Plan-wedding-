@@ -4,15 +4,15 @@
 <style>
 /* Layout: satu kolom sempit seperti aplikasi HP; tab di atas, ringkasan dulu, detail kemudian. Data dipakai bersama lewat db. */
 :root {
-  --bg: #f6f5f8;
+  --bg: #f3f5ef;
   --surface: #ffffff;
-  --fg: #1f1b2e;
-  --muted: #6b6680;
-  --line: #e3e0ea;
-  --accent: #7a2e5b;
+  --fg: #1c241d;
+  --muted: #65705f;
+  --line: #dde3d6;
+  --accent: #4f6b52;
   --accent-fg: #ffffff;
-  --accent-soft: #f1e3ec;
-  --good: #1f7a4d;
+  --accent-soft: #e3ebdd;
+  --good: #2b7a6b;
   --warn: #b25e09;
   --bad: #b3261e;
   --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
@@ -20,15 +20,15 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #15121d; --surface: #1f1b2b; --fg: #efecf6; --muted: #a29cb8; --line: #332e44;
-    --accent: #e08ac0; --accent-fg: #2a0f20; --accent-soft: #3a2433;
-    --good: #5fd194; --warn: #f0a24f; --bad: #ff8a80; color-scheme: dark;
+    --bg: #121713; --surface: #1b221c; --fg: #e8eee6; --muted: #9aa896; --line: #2c352d;
+    --accent: #a9c7a1; --accent-fg: #14210f; --accent-soft: #27332a;
+    --good: #6fd6bd; --warn: #f0a24f; --bad: #ff8a80; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #15121d; --surface: #1f1b2b; --fg: #efecf6; --muted: #a29cb8; --line: #332e44;
-  --accent: #e08ac0; --accent-fg: #2a0f20; --accent-soft: #3a2433;
-  --good: #5fd194; --warn: #f0a24f; --bad: #ff8a80; color-scheme: dark;
+  --bg: #121713; --surface: #1b221c; --fg: #e8eee6; --muted: #9aa896; --line: #2c352d;
+  --accent: #a9c7a1; --accent-fg: #14210f; --accent-soft: #27332a;
+  --good: #6fd6bd; --warn: #f0a24f; --bad: #ff8a80; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45;
