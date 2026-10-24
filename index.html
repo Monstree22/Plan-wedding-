@@ -71,7 +71,7 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent);
 .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
 .pill.good { color: var(--good); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
 .tbl { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; min-width: 520px; font-variant-numeric: tabular-nums; }
+table { border-collapse: collapse; width: 100%; min-width: 700px; font-variant-numeric: tabular-nums; }
 th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 6px 4px; }
 td { padding: 4px; border-top: 1px solid var(--line); }
 td input { padding: 7px 8px; }
@@ -93,6 +93,29 @@ td input { padding: 7px 8px; }
 .ref select { width: auto; padding: 5px 8px; font-size: 13px; }
 .price { font-variant-numeric: tabular-nums; font-weight: 600; }
 details summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+.hero { background: var(--accent); color: var(--accent-fg); border-radius: 18px; padding: 22px 20px 16px; display: grid; gap: 14px; position: relative; overflow: hidden; }
+.hero::after { content: ""; position: absolute; right: -48px; top: -48px; width: 170px; height: 170px; border-radius: 50%; border: 26px solid color-mix(in srgb, var(--accent-fg) 14%, transparent); pointer-events: none; }
+.hero .big { font: 700 80px/0.9 var(--font-display); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.hero .cap { font-size: 14px; opacity: .92; }
+.hero .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.hero .chips span { background: color-mix(in srgb, var(--accent-fg) 18%, transparent); font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 99px; }
+.track { position: relative; height: 60px; margin: 4px 8px 0; }
+.track .line { position: absolute; left: 0; right: 0; top: 28px; height: 4px; border-radius: 9px; background: color-mix(in srgb, var(--accent-fg) 28%, transparent); }
+.track .line i { display: block; height: 100%; background: var(--accent-fg); border-radius: 9px; }
+.stop { position: absolute; top: 0; height: 60px; width: 0; }
+.stop::before { content: ""; position: absolute; left: -8px; top: 22px; width: 16px; height: 16px; border-radius: 50%; background: var(--accent-fg); border: 3px solid var(--accent); box-sizing: border-box; }
+.stop span { position: absolute; top: 42px; left: 0; transform: translateX(-50%); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.stop.up span { top: 0; }
+.stop.l span { transform: none; }
+.stop.r span { transform: translateX(-100%); }
+.like { border: 1px solid var(--line); background: var(--surface); color: var(--muted); font: 600 13px var(--font-body); padding: 5px 12px; border-radius: 99px; cursor: pointer; }
+.like[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.like[disabled] { opacity: .5; cursor: default; }
+.task.g { flex-wrap: wrap; }
+.task.g .body { flex: 1 1 100%; }
+.split { display: grid; gap: 8px; }
+.split div { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+.split .bar { height: 6px; }
 @media (prefers-reduced-motion: no-preference) { .bar i { transition: width .3s; } }
 </style>
 
@@ -151,9 +174,10 @@ const BUDGET_TEMPLATE = ["Venue & katering","Dekorasi","MUA & busana","Foto & vi
 const REF_CATS = ["Dekorasi","Busana","MUA","Wedding Organizer","Venue","Katering","Foto & video","Seserahan","Undangan","Lainnya"];
 const REF_STATUS = { ide: ["Ide", ""], kandidat: ["Kandidat", "warn"], dipilih: ["Dipilih", "good"], ditolak: ["Ditolak", "bad"] };
 const SIDES = { pria: "Keluarga pria", wanita: "Keluarga wanita", teman: "Teman", kolega: "Kolega" };
+const PAYERS = { bersama: "Berdua", pria: "Pihak pria", wanita: "Pihak wanita", ortupria: "Ortu pria", ortuwanita: "Ortu wanita" };
 const STAT = { belum: ["Belum dikirim", ""], terkirim: ["Terkirim", "warn"], hadir: ["Hadir", "good"], tidak: ["Tidak hadir", "bad"] };
 
-const S = { meta: { lamaran: "", wedding: "", target: 0 }, tasks: [], budget: [], guests: [], refs: [], loaded: {} };
+const S = { meta: { lamaran: "", wedding: "", target: 0 }, tasks: [], budget: [], guests: [], refs: [], votes: [], loaded: {} };
 let db = null, userApi = null, assetsApi = null, canWrite = true, me = null, state = "loading";
 let tab = (location.hash || "").slice(1);
 if (!TABS.some(t => t[0] === tab)) tab = "ringkasan";
@@ -234,7 +258,7 @@ async function init() {
   }
   updateNotice();
   subscribeMeta();
-  subscribe("tasks", "tasks"); subscribe("budget", "budget"); subscribe("guests", "guests"); subscribe("refs", "refs");
+  subscribe("tasks", "tasks"); subscribe("budget", "budget"); subscribe("guests", "guests"); subscribe("refs", "refs"); subscribe("votes", "votes");
 }
 
 /* ---------- tampilan ---------- */
@@ -264,6 +288,7 @@ function vRingkasan() {
   const hadir = S.guests.filter(g => g.status === "hadir").reduce((a, g) => a + (+g.n || 0), 0);
   const next = S.tasks.filter(t => !t.done).map(t => ({ t, d: dueDate(t) })).filter(x => x.d).sort((a, b) => a.d - b.d).slice(0, 5);
   return `<div class="stack">
+    ${hero()}
     <div class="card">
       <h2>Tanggal penting</h2>
       <div class="row">
@@ -288,6 +313,31 @@ function vRingkasan() {
         : `<p class="empty">Isi tanggal lamaran atau nikah untuk melihat tugas terdekat.</p>`}
     </div>
   </div>`;
+}
+
+const likers = id => new Set(S.votes.filter(v => v.ref === id).map(v => v.by));
+function hero() {
+  const t = today(), w = daysTo(S.meta.wedding), l = daysTo(S.meta.lamaran);
+  let big, cap;
+  if (w === null) { big = "—"; cap = "Isi tanggal nikah di bawah untuk memulai hitung mundur."; }
+  else if (w < 0) { big = "Sah!"; cap = "Selamat menempuh hidup baru."; }
+  else if (w === 0) { big = "Hari ini"; cap = "Hari-H tiba. Selamat!"; }
+  else { big = w; cap = "hari menuju hari-H · " + fmtDate(new Date(S.meta.wedding + "T00:00:00")) + " · sekitar " + Math.ceil(w / 7) + " minggu"; }
+  const open = S.tasks.filter(x => !x.done).map(dueDate).filter(Boolean);
+  const late = open.filter(d => d < t).length, soon = open.filter(d => d >= t && d - t <= 7 * 864e5).length;
+  const chips = [];
+  if (w !== null && w >= 0) chips.push(l !== null && l >= 0 ? "Menuju lamaran · " + l + " hari" : "Menuju hari-H");
+  if (late) chips.push(late + " tugas terlambat");
+  if (soon) chips.push(soon + " tugas minggu ini");
+  let track = "";
+  if (S.meta.wedding && w >= 0) {
+    const W = new Date(S.meta.wedding + "T00:00:00"), L = S.meta.lamaran ? new Date(S.meta.lamaran + "T00:00:00") : null;
+    const start = new Date(Math.min(t, L || t)), span = Math.max(1, W - start);
+    const pos = d => Math.min(100, Math.max(0, (d - start) / span * 100));
+    const stop = (label, p, extra) => `<div class="stop ${extra || ""} ${p < 9 ? "l" : p > 91 ? "r" : ""}" style="left:${p}%"><span>${label}</span></div>`;
+    track = `<div class="track" aria-hidden="true"><div class="line"><i style="width:${pos(t)}%"></i></div>${L ? stop("Lamaran", pos(L)) : ""}${stop("Hari ini", pos(t), "up")}${stop("Nikah", 100)}</div>`;
+  }
+  return `<div class="hero"><div><div class="big">${big}</div><div class="cap">${cap}</div></div>${chips.length ? `<div class="chips">${chips.map(c => `<span>${c}</span>`).join("")}</div>` : ""}${track}</div>`;
 }
 
 function vChecklist() {
@@ -327,6 +377,7 @@ function vBudget() {
   const act = items.reduce((a, b) => a + (+b.act || 0), 0);
   const paid = items.reduce((a, b) => a + (+b.paid || 0), 0);
   const over = S.meta.target && act > S.meta.target;
+  const split = Object.entries(PAYERS).map(([k, n]) => [n, items.filter(b => (b.payer || "bersama") === k).reduce((a, b) => a + (+b.act || 0), 0)]).filter(x => x[1] > 0);
   return `<div class="stack">
     <div class="card">
       <div class="row"><label>Budget maksimal (Rp)<input type="number" id="bt" min="0" value="${S.meta.target || ""}" placeholder="mis. 150000000" ${dis()}></label></div>
@@ -336,14 +387,16 @@ function vBudget() {
         <div><b style="font-size:20px">${rp(paid)}</b><span>sudah dibayar · belum ${rp(act - paid)}</span></div>
       </div>
     </div>
+    ${split.length ? `<div class="card"><h2>Siapa menanggung apa</h2><div class="split">${split.map(([n, v]) => `<div><span>${n}</span><span class="bar"><i style="width:${act ? Math.round(v / act * 100) : 0}%"></i></span><b class="price">${rp(v)}</b></div>`).join("")}</div><p class="sub">Dihitung dari biaya aktual per pos.</p></div>` : ""}
     <div class="card">
       ${items.length ? `<div class="tbl"><table>
-      <thead><tr><th>Pos</th><th class="num">Estimasi</th><th class="num">Aktual</th><th class="num">Dibayar</th><th></th></tr></thead>
+      <thead><tr><th>Pos</th><th class="num">Estimasi</th><th class="num">Aktual</th><th class="num">Dibayar</th><th>Ditanggung</th><th></th></tr></thead>
       <tbody>${items.map(b => `<tr>
         <td><input data-b="${b.id}" data-f="name" value="${esc(b.name)}" ${dis()} aria-label="Nama pos"></td>
         <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="est" value="${b.est || ""}" ${dis()} aria-label="Estimasi"></td>
         <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="act" value="${b.act || ""}" ${dis()} aria-label="Aktual"></td>
         <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="paid" value="${b.paid || ""}" ${dis()} aria-label="Dibayar"></td>
+        <td><select data-b="${b.id}" data-f="payer" ${dis()} aria-label="Ditanggung oleh">${Object.entries(PAYERS).map(([k, n]) => `<option value="${k}" ${(b.payer || "bersama") === k ? "selected" : ""}>${n}</option>`).join("")}</select></td>
         <td><button class="x" data-del="budget/${b.id}" ${dis()} aria-label="Hapus pos">×</button></td></tr>`).join("")}</tbody>
       </table></div>` : `<div class="empty"><span>Belum ada pos budget.</span><button class="btn" id="tplb" ${dis()}>Pakai 9 pos standar</button></div>`}
       <div><button class="btn ghost" id="addb" ${dis()}>Tambah pos</button></div>
@@ -356,14 +409,18 @@ function vTamu() {
   const gs = [...S.guests].sort(byOrd);
   const tot = gs.reduce((a, g) => a + (+g.n || 0), 0);
   const hadir = gs.filter(g => g.status === "hadir").reduce((a, g) => a + (+g.n || 0), 0);
-  const rows = gs.map(g => `<div class="task">
+  const amplop = gs.reduce((a, g) => a + (+g.amplop || 0), 0);
+  const cost = S.budget.reduce((a, b) => a + (+b.act || 0), 0);
+  const rows = gs.map(g => `<div class="task g">
     <div class="body"><div class="t">${esc(g.name)} <span class="meta">· ${g.n} orang · ${SIDES[g.side] || ""}</span></div></div>
+    <input class="num" type="number" min="0" data-ga="${g.id}" value="${g.amplop || ""}" placeholder="Amplop (Rp)" ${dis()} aria-label="Amplop dari ${esc(g.name)}" style="width:150px">
     <select data-gs="${g.id}" ${dis()} aria-label="Status ${esc(g.name)}" style="width:auto">${Object.entries(STAT).map(([k, v]) => `<option value="${k}" ${g.status === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
     <button class="x" data-del="guests/${g.id}" ${dis()} aria-label="Hapus tamu">×</button></div>`).join("");
   return `<div class="stack">
     <div class="card"><div class="count">
       <div><b>${tot}</b><span>total orang diundang</span></div>
-      <div><b>${hadir}</b><span>konfirmasi hadir</span></div></div></div>
+      <div><b>${hadir}</b><span>konfirmasi hadir</span></div>
+      <div><b style="font-size:20px">${rp(amplop)}</b><span>amplop terkumpul${cost ? " · menutup " + Math.round(amplop / cost * 100) + "% biaya" : ""}</span></div></div></div>
     <div class="card"><h2>Daftar tamu</h2>${rows || `<p class="empty">Belum ada tamu. Tambahkan di bawah.</p>`}</div>
     <form class="card" id="addguest"><h2>Tambah tamu</h2><div class="row">
       <label style="flex-basis:100%">Nama<input id="gn" required placeholder="mis. Keluarga Pak Hendra" ${dis()}></label>
@@ -376,12 +433,12 @@ function vTamu() {
 function vReferensi() {
   if (state === "ready" && !S.loaded.refs) return loading();
   const all = [...S.refs].sort((a, b) => (b.ord || 0) - (a.ord || 0));
-  const list = all.filter(r => (refCat === "Semua" || r.cat === refCat) && (refStatus === "semua" || r.status === refStatus));
+  const list = all.filter(r => (refCat === "Semua" || r.cat === refCat) && (refStatus === "semua" || (refStatus === "cocok" ? likers(r.id).size >= 2 : r.status === refStatus)));
   const cards = list.map(r => {
-    const link = cleanUrl(r.url);
+    const link = cleanUrl(r.url), lk = likers(r.id), both = lk.size >= 2, mine = me && lk.has(me);
     const img = r.img ? `<img src="/_blob/${esc(r.img)}" alt="${esc(r.title)}" loading="lazy">` : "";
     return `<article class="ref">${img}<div class="in">
-      <div class="top"><span class="pill">${esc(r.cat)}</span>
+      <div class="top"><span><span class="pill">${esc(r.cat)}</span> ${both ? `<span class="pill good">Cocok berdua</span>` : ""}</span>
         <button class="x" data-del="refs/${r.id}" ${dis()} aria-label="Hapus referensi">×</button></div>
       <h3>${esc(r.title)}</h3>
       ${r.price ? `<div class="price">${rp(r.price)}</div>` : ""}
@@ -390,13 +447,14 @@ function vReferensi() {
       ${r.note ? `<p>${esc(r.note)}</p>` : ""}
       <div class="row" style="align-items:center;justify-content:space-between">
         <select data-rs="${r.id}" ${dis()} aria-label="Status ${esc(r.title)}">${Object.entries(REF_STATUS).map(([k, v]) => `<option value="${k}" ${r.status === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
+        <button class="like" data-like="${r.id}" aria-pressed="${!!mine}" ${db && canWrite && me ? "" : "disabled"}>♥ ${lk.size}</button>
         <span class="meta" data-by="${esc(r.by || "")}"></span></div>
     </div></article>`;
   }).join("");
   return `<div class="stack">
     <div class="card">
       <div class="chips" role="group" aria-label="Kategori">${["Semua", ...REF_CATS].map(c => `<button data-rc="${esc(c)}" aria-pressed="${refCat === c}">${esc(c)}</button>`).join("")}</div>
-      <div class="chips" role="group" aria-label="Status">${[["semua", "Semua status"], ...Object.entries(REF_STATUS).map(([k, v]) => [k, v[0]])].map(([k, n]) => `<button data-rst="${k}" aria-pressed="${refStatus === k}">${n}</button>`).join("")}</div>
+      <div class="chips" role="group" aria-label="Status">${[["semua", "Semua status"], ["cocok", "♥ Cocok berdua"], ...Object.entries(REF_STATUS).map(([k, v]) => [k, v[0]])].map(([k, n]) => `<button data-rst="${k}" aria-pressed="${refStatus === k}">${n}</button>`).join("")}</div>
     </div>
     ${list.length ? `<div class="refs">${cards}</div>` : `<div class="card"><p class="empty">${all.length ? "Tidak ada referensi dengan filter ini." : "Belum ada referensi. Simpan ide dekor, busana, vendor WO atau MUA di bawah."}</p></div>`}
     <form class="card" id="addref">
@@ -440,9 +498,14 @@ async function shrink(file) {
 
 /* ---------- aksi ---------- */
 document.addEventListener("click", async e => {
-  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],#addb,#tpl,#tplb");
+  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],[data-like],#addb,#tpl,#tplb");
   if (!el) return;
   if (el.dataset.tab) { tab = el.dataset.tab; try { history.replaceState(null, "", "#" + tab); } catch (x) {} view(); }
+  else if (el.dataset.like) {
+    if (!me) return;
+    const vid = el.dataset.like + "__" + me, has = S.votes.some(v => v.id === vid);
+    write(() => has ? db.doc("votes/" + vid).delete() : db.doc("votes/" + vid).set({ ref: el.dataset.like, by: me }));
+  }
   else if (el.dataset.rc) { refCat = el.dataset.rc; view(); }
   else if (el.dataset.rst) { refStatus = el.dataset.rst; view(); }
   else if (el.dataset.del) {
@@ -454,6 +517,7 @@ document.addEventListener("click", async e => {
     const [c, id] = el.dataset.del.split("/");
     const doc = S.refs.find(r => r.id === id && c === "refs");
     write(async () => { await db.doc(el.dataset.del).delete(); });
+    if (c === "refs") S.votes.filter(v => v.ref === id).forEach(v => write(() => db.doc("votes/" + v.id).delete()));
     if (doc && doc.img && assetsApi) { try { await assetsApi.delete(doc.img); } catch (x) {} }
   }
   else if (el.id === "addb") write(() => col("budget").doc(uid()).set({ name: "Pos baru", est: 0, act: 0, paid: 0, ord: Date.now() }));
@@ -474,7 +538,8 @@ document.addEventListener("change", e => {
   else if (el.id === "dw") setMeta({ wedding: el.value });
   else if (el.id === "bt") setMeta({ target: +el.value || 0 });
   else if (el.dataset.done) write(() => db.doc("tasks/" + el.dataset.done).update({ done: el.checked }));
-  else if (el.dataset.b) write(() => db.doc("budget/" + el.dataset.b).update({ [el.dataset.f]: el.dataset.f === "name" ? el.value : (+el.value || 0) }));
+  else if (el.dataset.b) write(() => db.doc("budget/" + el.dataset.b).update({ [el.dataset.f]: el.dataset.f === "name" || el.dataset.f === "payer" ? el.value : (+el.value || 0) }));
+  else if (el.dataset.ga) write(() => db.doc("guests/" + el.dataset.ga).update({ amplop: +el.value || 0 }));
   else if (el.dataset.gs) write(() => db.doc("guests/" + el.dataset.gs).update({ status: el.value }));
   else if (el.dataset.rs) write(() => db.doc("refs/" + el.dataset.rs).update({ status: el.value }));
 });
