@@ -124,6 +124,8 @@ details summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 .entry p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .entry.done p { text-decoration: line-through; color: var(--muted); }
 .exports { display: flex; gap: 8px; flex-wrap: wrap; }
+a.btn { text-decoration: none; display: inline-block; }
+.linkbox { font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: no-preference) { .bar i { transition: width .3s; } }
 </style>
 
@@ -138,7 +140,8 @@ details summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 </main>
 
 <script>
-const TABS = [["ringkasan","Ringkasan"],["checklist","Checklist"],["budget","Budget"],["vendor","Vendor"],["tamu","Tamu"],["referensi","Referensi"],["seserahan","Seserahan"],["harih","Hari-H"],["jurnal","Jurnal"]];
+const TABS = [["ringkasan","Ringkasan"],["checklist","Checklist"],["budget","Budget"],["vendor","Vendor"],["tamu","Tamu"],["undangan","Undangan"],["referensi","Referensi"],["seserahan","Seserahan"],["harih","Hari-H"],["jurnal","Jurnal"]];
+const INVITE_URL = "https://claude.ai/artifact/K1zvvkPmP2PkMC6J1rAudw";
 const SES_STATUS = { belum: "Belum dibeli", dibeli: "Sudah dibeli", dihias: "Sudah dihias" };
 const RUN_DAYS = ["Lamaran", "Hari-H"];
 const J_KINDS = { keputusan: ["Keputusan", "good"], catatan: ["Catatan", ""], bahas: ["Perlu dibahas", "warn"] };
@@ -287,7 +290,7 @@ function renderTabs() {
 function view() {
   pendingRender = false;
   renderCountdown(); renderTabs();
-  $("view").innerHTML = ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, tamu: vTamu, referensi: vReferensi, vendor: vVendor, seserahan: vSeserahan, harih: vHariH, jurnal: vJurnal })[tab]();
+  $("view").innerHTML = ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, tamu: vTamu, referensi: vReferensi, vendor: vVendor, undangan: vUndangan, seserahan: vSeserahan, harih: vHariH, jurnal: vJurnal })[tab]();
   resolveNames();
 }
 const dis = () => canWrite && db ? "" : "disabled";
@@ -429,6 +432,7 @@ function vTamu() {
   const cost = S.budget.reduce((a, b) => a + (+b.act || 0), 0);
   const rows = gs.map(g => `<div class="task g">
     <div class="body"><div class="t">${esc(g.name)} <span class="meta">· ${g.n} orang · ${SIDES[g.side] || ""}</span></div></div>
+    <select data-gm="${g.id}" ${dis()} aria-label="Cara undang ${esc(g.name)}" style="width:auto"><option value="fisik" ${g.mode !== "online" ? "selected" : ""}>Undangan fisik</option><option value="online" ${g.mode === "online" ? "selected" : ""}>Undangan online</option></select>
     <input class="num" type="number" min="0" data-ga="${g.id}" value="${g.amplop || ""}" placeholder="Amplop (Rp)" ${dis()} aria-label="Amplop dari ${esc(g.name)}" style="width:150px">
     <select data-gs="${g.id}" ${dis()} aria-label="Status ${esc(g.name)}" style="width:auto">${Object.entries(STAT).map(([k, v]) => `<option value="${k}" ${g.status === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
     <button class="x" data-del="guests/${g.id}" ${dis()} aria-label="Hapus tamu">×</button></div>`).join("");
@@ -442,6 +446,8 @@ function vTamu() {
       <label style="flex-basis:100%">Nama<input id="gn" required placeholder="mis. Keluarga Pak Hendra" ${dis()}></label>
       <label>Jumlah orang<input id="gc" type="number" min="1" value="1" ${dis()}></label>
       <label>Dari pihak<select id="gside" ${dis()}>${Object.entries(SIDES).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
+      <label>Cara undang<select id="gmode" ${dis()}><option value="fisik">Undangan fisik</option><option value="online">Undangan online</option></select></label>
+      <label>No. WhatsApp (opsional)<input id="gph" inputmode="tel" placeholder="0812..." ${dis()}></label>
       <button class="btn" ${dis()}>Tambah</button></div></form>
   </div>`;
 }
@@ -606,7 +612,7 @@ const EXPORTS = {
   checklist: ["Checklist", "checklist-nikah.csv", () => [["Tugas", "Kategori", "Tenggat", "Selesai"], ...S.tasks.map(t => [t.t, t.cat, dueDate(t) ? fmtDate(dueDate(t)) : "", t.done ? "Ya" : "Belum"])]],
   budget: ["Budget", "budget-nikah.csv", () => [["Pos", "Estimasi", "Aktual", "Dibayar", "Ditanggung"], ...[...S.budget].sort(byOrd).map(b => [b.name, b.est || 0, b.act || 0, b.paid || 0, PAYERS[b.payer || "bersama"]])]],
   vendor: ["Vendor", "vendor-nikah.csv", () => [["Vendor", "Jenis", "Kontak", "Total", "DP", "Tanggal DP", "DP lunas", "Pelunasan", "Tanggal pelunasan", "Pelunasan lunas"], ...[...S.vendors].sort(byOrd).map(v => [v.name, v.cat, v.contact || "", v.total || 0, v.dp || 0, v.dpDate || "", v.dpPaid ? "Ya" : "Belum", v.final || 0, v.finalDate || "", v.finalPaid ? "Ya" : "Belum"])]],
-  tamu: ["Tamu", "daftar-tamu.csv", () => [["Nama", "Jumlah orang", "Pihak", "Status", "Amplop"], ...[...S.guests].sort(byOrd).map(g => [g.name, g.n, SIDES[g.side] || "", (STAT[g.status] || [""])[0], g.amplop || 0])]],
+  tamu: ["Tamu", "daftar-tamu.csv", () => [["Nama", "Jumlah orang", "Pihak", "Cara undang", "Status", "Amplop"], ...[...S.guests].sort(byOrd).map(g => [g.name, g.n, SIDES[g.side] || "", g.mode === "online" ? "Online" : "Fisik", (STAT[g.status] || [""])[0], g.amplop || 0])]],
   seserahan: ["Seserahan", "seserahan-mahar.csv", () => [["Barang", "Jenis", "Harga", "Status"], ...[...S.seserahan].sort(byOrd).map(x => [x.name, x.kind, x.price || 0, SES_STATUS[x.status] || ""])]],
   rundown: ["Rundown", "rundown-acara.csv", () => [["Hari", "Jam", "Acara", "PIC", "Catatan"], ...[...S.rundown].sort((a, b) => (a.day || "Hari-H").localeCompare(b.day || "Hari-H") || (a.time || "").localeCompare(b.time || "")).map(r => [r.day || "Hari-H", r.time || "", r.title, r.pic || "", r.note || ""])]]
 };
@@ -614,6 +620,74 @@ function exportCard() {
   if (!dlApi) return "";
   return `<div class="card"><h2>Ekspor ke file</h2><p class="sub">Simpan sebagai CSV untuk dibuka di Excel atau Google Sheets, atau dikirim ke keluarga.</p>
     <div class="exports">${Object.entries(EXPORTS).map(([k, v]) => `<button class="btn ghost" data-export="${k}">${v[0]}</button>`).join("")}</div></div>`;
+}
+
+/* ---------- undangan online ---------- */
+const b64u = s => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+function inviteLink(name) {
+  const i = S.meta.invite || {};
+  const raw = { t: i.jenis, p: i.pria, w: i.wanita, op: i.ortuPria, ow: i.ortuWanita, d: i.tgl || S.meta.wedding, aj: i.akadJam, rj: i.resepsiJam, v: i.tempat, a: i.alamat, m: i.maps, dc: i.dress, ps: i.pesan, wa: i.wa, g: i.hadiah, n: name };
+  const d = {}; Object.entries(raw).forEach(([k, v]) => { if (v) d[k] = v; });
+  return INVITE_URL + "#" + b64u(JSON.stringify(d));
+}
+function waLink(g) {
+  const i = S.meta.invite || {}, phone = String(g.phone || "").replace(/\D/g, "").replace(/^0/, "62");
+  const text = "Halo " + g.name + ", kami mengundang Anda ke " + (i.jenis || "Pernikahan").toLowerCase() + " " + (i.pria || "") + " & " + (i.wanita || "") + ". Detail undangan bisa dibuka di sini:\n" + inviteLink(g.name);
+  return "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
+}
+function markSent(id) {
+  const g = S.guests.find(x => x.id === id);
+  if (g && g.status === "belum") write(() => db.doc("guests/" + id).update({ status: "terkirim" }));
+}
+async function copyInvite(id) {
+  const g = S.guests.find(x => x.id === id); if (!g) return;
+  const link = inviteLink(g.name);
+  try { await navigator.clipboard.writeText(link); flash("Link untuk " + g.name + " tersalin."); }
+  catch (e) {
+    flash(link); clearTimeout(flashT); flashT = setTimeout(updateNotice, 20000);
+    const r = document.createRange(); r.selectNodeContents($("notice")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  }
+  markSent(id);
+}
+function vUndangan() {
+  if (state === "ready" && !(S.loaded.guests && S.loaded.meta)) return loading();
+  const i = S.meta.invite || {};
+  const inp = (label, key, type, ph) => `<label>${label}<input type="${type || "text"}" data-inv="${key}" value="${esc(i[key] || "")}" placeholder="${esc(ph || "")}" ${dis()}></label>`;
+  const ta = (label, key, ph) => `<label style="flex-basis:100%">${label}<textarea data-inv="${key}" placeholder="${esc(ph || "")}" ${dis()}>${esc(i[key] || "")}</textarea></label>`;
+  const gs = [...S.guests].sort(byOrd), online = gs.filter(g => g.mode === "online");
+  const sent = online.filter(g => g.status !== "belum").length;
+  const ready = !!((i.pria && i.wanita) && (i.tgl || S.meta.wedding));
+  const rows = online.map(g => `<div class="task g"><div class="body"><div class="t">${esc(g.name)} <span class="pill ${(STAT[g.status] || ["", ""])[1]}">${(STAT[g.status] || [""])[0]}</span></div>
+    <div class="meta">${g.phone ? esc(g.phone) : "Tanpa nomor WhatsApp: pilih kontak saat WhatsApp terbuka"}</div></div>
+    <button class="btn ghost" data-copy="${g.id}" ${ready ? "" : "disabled"}>Salin link</button>
+    <a class="btn" href="${ready ? esc(waLink(g)) : "#"}" target="_blank" rel="noopener noreferrer" data-sent="${g.id}" ${ready ? "" : "aria-disabled=\"true\" style=\"opacity:.5;pointer-events:none\""}>Kirim WhatsApp</a></div>`).join("");
+  return `<div class="stack">
+    <div class="card"><div class="count">
+      <div><b>${online.length}</b><span>tamu online · ${sent} sudah dikirim</span></div>
+      <div><b>${gs.length - online.length}</b><span>tamu undangan fisik</span></div></div>
+      <p class="sub">Atur cara undang tiap tamu di tab Tamu. Tamu online mendapat link berisi namanya sendiri.</p></div>
+    <div class="card"><h2>Detail undangan</h2>
+      ${ready ? "" : `<div class="notice">Isi nama kedua mempelai dan tanggal acara agar link bisa dibuat.</div>`}
+      <div class="row">
+        <label>Jenis acara<select data-inv="jenis" ${dis()}>${["Pernikahan", "Lamaran", "Tunangan"].map(j => `<option ${((i.jenis || "Pernikahan") === j) ? "selected" : ""}>${j}</option>`).join("")}</select></label>
+        ${inp("Tanggal acara", "tgl", "date")}
+        ${inp("Nama mempelai pria", "pria", "text", "mis. Rafi")}${inp("Nama mempelai wanita", "wanita", "text", "mis. Alya")}
+        ${inp("Orang tua pria", "ortuPria", "text", "Bapak ... & Ibu ...")}${inp("Orang tua wanita", "ortuWanita", "text", "Bapak ... & Ibu ...")}
+        ${inp("Jam akad atau acara", "akadJam", "time")}${inp("Jam resepsi (opsional)", "resepsiJam", "time")}
+        ${inp("Nama tempat", "tempat", "text", "mis. Gedung Melati")}${inp("Tautan Google Maps", "maps", "url", "https://maps.app.goo.gl/...")}
+        ${ta("Alamat", "alamat", "alamat lengkap tempat acara")}
+        ${inp("Busana tamu", "dress", "text", "mis. earth tone")}${inp("WhatsApp penerima konfirmasi", "wa", "tel", "0812...")}
+        ${ta("Kata pembuka (opsional)", "pesan", "kosongkan untuk memakai kalimat standar")}
+        ${ta("Tanda kasih (opsional)", "hadiah", "mis. BCA 1234567890 a.n. Nama")}
+      </div>
+      <p class="sub">Link tamu dibuat otomatis dari isian ini. Kalau ada yang diubah setelah link dikirim, kirim ulang link barunya.</p></div>
+    <div class="card"><h2>Link untuk tamu online</h2>
+      ${rows || `<p class="empty">Belum ada tamu online. Ubah cara undang menjadi Online di tab Tamu.</p>`}
+      <div class="exports"><a class="btn ghost" href="${INVITE_URL}" target="_blank" rel="noopener noreferrer">Lihat contoh tampilan</a>${ready ? `<a class="btn ghost" href="${esc(inviteLink("Nama Tamu"))}" target="_blank" rel="noopener noreferrer">Lihat dengan data kalian</a>` : ""}</div></div>
+    <div class="card"><h2>Supaya tamu bisa membuka</h2>
+      <p class="sub">Halaman undangan terpisah dari aplikasi ini dan tidak berisi data pribadi kalian. Buka halaman undangan lalu atur Share agar siapa saja yang memegang link bisa melihat. Jangan bagikan link aplikasi perencana ini ke tamu.</p>
+      <div class="linkbox">${INVITE_URL}</div></div>
+  </div>`;
 }
 
 async function resolveNames() {
@@ -636,8 +710,10 @@ async function shrink(file) {
 
 /* ---------- aksi ---------- */
 document.addEventListener("click", async e => {
-  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],[data-like],[data-export],#addb,#tpl,#tplb");
+  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],[data-like],[data-export],[data-copy],[data-sent],#addb,#tpl,#tplb");
   if (!el) return;
+  if (el.dataset.sent) { markSent(el.dataset.sent); return; }
+  if (el.dataset.copy) { copyInvite(el.dataset.copy); return; }
   if (el.dataset.export) {
     const ex = EXPORTS[el.dataset.export];
     try { await dlApi.save({ filename: ex[1], data: csv(ex[2]()) }); } catch (x) { if (!x || x.code !== "declined") flash("File tidak bisa disimpan di tampilan ini."); }
@@ -688,6 +764,8 @@ document.addEventListener("change", e => {
   else if (el.dataset.v) write(() => db.doc("vendors/" + el.dataset.v).update({ [el.dataset.f]: val(el) }));
   else if (el.dataset.s) write(() => db.doc("seserahan/" + el.dataset.s).update({ [el.dataset.f]: val(el) }));
   else if (el.dataset.jr) write(() => db.doc("journal/" + el.dataset.jr).update({ resolved: el.checked }));
+  else if (el.dataset.gm) write(() => db.doc("guests/" + el.dataset.gm).update({ mode: el.value }));
+  else if (el.dataset.inv) setMeta({ invite: { ...(S.meta.invite || {}), [el.dataset.inv]: el.value.trim() } });
 });
 document.addEventListener("submit", async e => {
   e.preventDefault();
@@ -696,7 +774,7 @@ document.addEventListener("submit", async e => {
     const f = { t: $("nt").value.trim(), cat: $("nc").value.trim() || "Acara", ref: $("nr").value, m: +$("nm").value || 0, done: false, ord: Date.now() };
     e.target.reset(); write(() => col("tasks").doc(uid()).set(f));
   } else if (id === "addguest") {
-    const f = { name: $("gn").value.trim(), n: Math.max(1, +$("gc").value || 1), side: $("gside").value, status: "belum", ord: Date.now() };
+    const f = { name: $("gn").value.trim(), n: Math.max(1, +$("gc").value || 1), side: $("gside").value, mode: $("gmode").value, phone: $("gph").value.trim(), status: "belum", ord: Date.now() };
     e.target.reset(); write(() => col("guests").doc(uid()).set(f));
   } else if (id === "addvendor") {
     const f = { name: $("vn").value.trim(), cat: $("vc").value, total: +$("vt").value || 0, ord: Date.now() };

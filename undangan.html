@@ -1,0 +1,190 @@
+<title>Undangan Pernikahan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500&family=Figtree:wght@400;500;600&family=Marcellus&display=swap">
+<style>
+/* Undangan digital: satu tampilan hijau sage tua dan kertas hijau pucat, dibaca dari atas ke bawah di HP. Data tamu dan acara dibaca dari tautan (#). */
+:root {
+  --forest: #223427;
+  --forest-2: #35523d;
+  --sage: #8fa78f;
+  --mist: #edf1e8;
+  --paper: #fafbf6;
+  --ink: #1c2a1f;
+  --muted: #5b6b5e;
+  --line: #d3ddcf;
+  --gold: #b49a5e;
+  --display: "Marcellus", "Palatino Linotype", Georgia, serif;
+  --script: "Cormorant Garamond", Georgia, serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--mist); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; }
+.in { max-width: 520px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.hero { background: var(--forest); color: #f1f4ec; position: relative; overflow: hidden; text-align: center; }
+.hero::before, .hero::after { content: ""; position: absolute; left: 50%; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); transform: translateX(-50%); pointer-events: none; }
+.hero::before { top: 50px; width: 340px; height: 340px; }
+.hero::after { top: 70px; width: 300px; height: 300px; border-color: color-mix(in srgb, var(--sage) 35%, transparent); }
+.hero .in { position: relative; padding-block: 56px 40px; display: grid; gap: 18px; justify-items: center; z-index: 1; }
+.eyebrow { font-size: 12px; letter-spacing: .24em; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+.names { font-family: var(--display); font-size: clamp(40px, 12vw, 58px); line-height: 1.02; margin: 0; font-weight: 400; overflow-wrap: anywhere; }
+.names em { display: block; font-family: var(--script); font-style: italic; font-size: .6em; color: var(--gold); line-height: 1.1; }
+.when { font-size: 15px; letter-spacing: .04em; }
+.guest { margin-top: 10px; border: 1px solid color-mix(in srgb, var(--gold) 60%, transparent); border-radius: 14px; padding: 14px 22px; display: grid; gap: 2px; max-width: 100%; background: color-mix(in srgb, var(--forest-2) 55%, transparent); }
+.guest small { font-size: 12px; color: #cdd8c8; }
+.guest b { font-family: var(--display); font-size: 22px; font-weight: 400; overflow-wrap: anywhere; }
+.sec { padding-block: 40px; }
+.sec h2 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 0 0 14px; text-align: center; color: var(--forest); text-wrap: balance; }
+.sec p { margin: 0 0 12px; text-align: center; color: var(--muted); }
+.orn { width: 56px; height: 1px; background: var(--gold); margin: 0 auto 20px; }
+.parents { display: grid; gap: 18px; margin-top: 22px; }
+.parents div { text-align: center; }
+.parents b { font-family: var(--display); font-weight: 400; font-size: 24px; display: block; color: var(--forest); }
+.parents span { font-size: 13px; color: var(--muted); }
+.paper { background: var(--paper); }
+.cards { display: grid; gap: 12px; }
+.card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 18px; text-align: center; display: grid; gap: 4px; }
+.card h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 22px; color: var(--forest); }
+.card .t { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.place { text-align: center; margin-top: 18px; display: grid; gap: 4px; }
+.place b { font-family: var(--display); font-weight: 400; font-size: 20px; color: var(--forest); }
+.actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+.btn { font: 600 14px var(--body); background: var(--forest); color: #fff; border: 0; border-radius: 99px; padding: 11px 20px; cursor: pointer; text-decoration: none; display: inline-block; }
+.btn.alt { background: transparent; color: var(--forest); border: 1px solid var(--forest); }
+.btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--forest-2); outline-offset: 2px; }
+.count { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 4px; }
+.count div { background: var(--forest); color: #fff; border-radius: 12px; padding: 10px 4px; text-align: center; }
+.count b { display: block; font: 400 26px var(--display); font-variant-numeric: tabular-nums; }
+.count span { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #cdd8c8; }
+.rsvp { display: grid; gap: 14px; }
+.choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.choice label { border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 12px; text-align: center; cursor: pointer; font-weight: 600; font-size: 14px; }
+.choice input { position: absolute; opacity: 0; pointer-events: none; }
+.choice label:has(input:checked) { background: var(--forest); color: #fff; border-color: var(--forest); }
+.choice label:has(input:focus-visible) { outline: 2px solid var(--forest-2); outline-offset: 2px; }
+.rsvp label.f { display: grid; gap: 4px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.rsvp select, .rsvp textarea { font: 400 15px var(--body); border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 10px; width: 100%; color: var(--ink); }
+.rsvp textarea { min-height: 80px; resize: vertical; }
+.gift { background: #fff; border: 1px dashed var(--sage); border-radius: 14px; padding: 16px; text-align: center; white-space: pre-wrap; overflow-wrap: anywhere; }
+.foot { background: var(--forest); color: #dfe7da; text-align: center; padding-block: 36px; }
+.foot b { display: block; font-family: var(--display); font-weight: 400; font-size: 24px; margin-top: 6px; color: #fff; }
+.demo { background: var(--gold); color: #1c1a10; font-size: 13px; text-align: center; padding: 8px 16px; font-weight: 600; }
+.toast { font-size: 13px; color: var(--forest); text-align: center; min-height: 18px; }
+@media (max-width: 360px) { .count b { font-size: 22px; } }
+</style>
+
+<div id="root"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function decode() {
+  try {
+    const h = location.hash.slice(1);
+    if (!h) return null;
+    let b = h.replace(/-/g, "+").replace(/_/g, "/");
+    while (b.length % 4) b += "=";
+    const d = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b), c => c.charCodeAt(0))));
+    return d && typeof d === "object" ? d : null;
+  } catch (e) { return null; }
+}
+function sample() {
+  const d = new Date(); d.setDate(d.getDate() + 120);
+  const iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  return { t: "Pernikahan", p: "Rafi", w: "Alya", op: "Bapak Hendra & Ibu Sari", ow: "Bapak Darmawan & Ibu Lestari", d: iso, aj: "08:00", rj: "11:00",
+    v: "Gedung Serbaguna Melati", a: "Jl. Contoh No. 12, Bandung", dc: "Earth tone: hijau sage, krem, cokelat", n: "Nama Tamu", demo: 1 };
+}
+const num = w => String(w || "").replace(/\D/g, "").replace(/^0/, "62");
+const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : "";
+const parseDt = (d, hm) => { if (!d) return null; const [h, m] = (hm || "00:00").split(":"); const x = new Date(d + "T00:00:00"); x.setHours(+h || 0, +m || 0); return x; };
+const stamp = x => x.getFullYear() + String(x.getMonth() + 1).padStart(2, "0") + String(x.getDate()).padStart(2, "0") + "T" + String(x.getHours()).padStart(2, "0") + String(x.getMinutes()).padStart(2, "0") + "00";
+
+let timer, D;
+function render() {
+  D = decode() || sample();
+  const jenis = D.t || "Pernikahan", isWed = jenis === "Pernikahan";
+  const pria = D.p || "Mempelai Pria", wanita = D.w || "Mempelai Wanita";
+  document.title = "Undangan " + jenis + " " + pria + " & " + wanita;
+  const start = parseDt(D.d, D.aj || D.rj), dateStr = D.d ? new Date(D.d + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "";
+  const msg = D.ps || (isWed
+    ? "Dengan memohon rahmat dan ridho Tuhan Yang Maha Esa, kami mengundang Bapak/Ibu/Saudara/i untuk hadir dan memberikan doa restu pada hari bahagia kami."
+    : "Dengan penuh rasa syukur, kami mengundang Bapak/Ibu/Saudara/i untuk hadir dan berbagi kebahagiaan pada acara " + jenis.toLowerCase() + " kami.");
+  const maps = safeUrl(D.m);
+  let cal = "";
+  if (start) {
+    const end = new Date(+start + 3 * 3600e3);
+    cal = "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(jenis + " " + pria + " & " + wanita) + "&dates=" + stamp(start) + "/" + stamp(end) + "&location=" + encodeURIComponent([D.v, D.a].filter(Boolean).join(", "));
+  }
+  const events = isWed
+    ? [["Akad", D.aj], D.rj ? ["Resepsi", D.rj] : null].filter(Boolean)
+    : [[jenis, D.aj]];
+  $("root").innerHTML = `
+  ${D.demo ? `<div class="demo">Contoh tampilan. Tautan undangan asli berisi nama dan acara kalian.</div>` : ""}
+  <header class="hero"><div class="in">
+    <div class="eyebrow">Undangan ${esc(jenis)}</div>
+    <h1 class="names">${esc(pria)}<em>dan</em>${esc(wanita)}</h1>
+    ${dateStr ? `<div class="when">${esc(dateStr)}</div>` : ""}
+    ${D.n ? `<div class="guest"><small>Kepada Yth. Bapak/Ibu/Saudara/i</small><b>${esc(D.n)}</b></div>` : ""}
+  </div></header>
+
+  <section class="sec"><div class="in"><div class="orn"></div><p>${esc(msg)}</p>
+    ${D.op || D.ow ? `<div class="parents">
+      <div><b>${esc(pria)}</b><span>${D.op ? "Putra dari " + esc(D.op) : ""}</span></div>
+      <div><b>${esc(wanita)}</b><span>${D.ow ? "Putri dari " + esc(D.ow) : ""}</span></div></div>` : ""}
+  </div></section>
+
+  <section class="sec paper"><div class="in"><h2>Waktu dan Tempat</h2>
+    <div class="cards">${events.map(([n, t]) => `<div class="card"><h3>${esc(n)}</h3><div>${esc(dateStr)}</div>${t ? `<div class="t">${esc(t)} WIB</div>` : ""}</div>`).join("")}</div>
+    ${D.v || D.a ? `<div class="place">${D.v ? `<b>${esc(D.v)}</b>` : ""}${D.a ? `<span>${esc(D.a)}</span>` : ""}</div>` : ""}
+    <div class="actions">${maps ? `<a class="btn" href="${esc(maps)}" target="_blank" rel="noopener noreferrer">Buka Google Maps</a>` : ""}${cal ? `<a class="btn alt" href="${esc(cal)}" target="_blank" rel="noopener noreferrer">Tambah ke kalender</a>` : ""}</div>
+    ${start && start > new Date() ? `<div style="margin-top:26px"><div class="count" id="cd"><div><b id="cdd">0</b><span>Hari</span></div><div><b id="cdh">0</b><span>Jam</span></div><div><b id="cdm">0</b><span>Menit</span></div><div><b id="cds">0</b><span>Detik</span></div></div></div>` : ""}
+  </div></section>
+
+  ${D.dc ? `<section class="sec"><div class="in"><h2>Busana</h2><div class="orn"></div><p>${esc(D.dc)}</p></div></section>` : ""}
+
+  ${D.g ? `<section class="sec paper"><div class="in"><h2>Tanda Kasih</h2><p>Doa restu Anda adalah hadiah terbaik. Bila ingin berbagi tanda kasih:</p><div class="gift">${esc(D.g)}</div>
+    <div class="actions"><button class="btn alt" id="cp" type="button">Salin</button></div><div class="toast" id="cpt" role="status"></div></div></section>` : ""}
+
+  <section class="sec ${D.g ? "" : "paper"}"><div class="in"><h2>Konfirmasi Kehadiran</h2>
+    ${D.wa ? `<form class="rsvp" id="rsvp">
+      <div class="choice" role="radiogroup" aria-label="Kehadiran">
+        <label><input type="radio" name="att" value="hadir" checked> Insya Allah hadir</label>
+        <label><input type="radio" name="att" value="tidak"> Berhalangan</label></div>
+      <label class="f" id="nwrap">Jumlah yang hadir<select id="rn">${[1, 2, 3, 4, 5].map(n => `<option>${n}</option>`).join("")}</select></label>
+      <label class="f">Ucapan dan doa<textarea id="rm" placeholder="Tulis ucapan untuk kedua mempelai"></textarea></label>
+      <a class="btn" id="wal" target="_blank" rel="noopener noreferrer" style="text-align:center">Kirim lewat WhatsApp</a>
+    </form>` : `<p>Mohon konfirmasi kehadiran langsung kepada mempelai atau keluarga yang mengundang Anda.</p>`}
+  </div></section>
+
+  <footer class="foot"><div class="in">Merupakan kehormatan bagi kami atas kehadiran dan doa restu Anda.<b>${esc(pria)} &amp; ${esc(wanita)}</b></div></footer>`;
+
+  clearInterval(timer);
+  if (start && start > new Date()) {
+    const tick = () => {
+      let s = Math.max(0, Math.floor((start - new Date()) / 1000));
+      const d = Math.floor(s / 86400); s -= d * 86400; const h = Math.floor(s / 3600); s -= h * 3600; const m = Math.floor(s / 60); s -= m * 60;
+      [["cdd", d], ["cdh", h], ["cdm", m], ["cds", s]].forEach(([i, v]) => { const e = $(i); if (e) e.textContent = v; });
+    };
+    tick(); timer = setInterval(tick, 1000);
+  }
+  const cp = $("cp");
+  if (cp) cp.onclick = async () => {
+    try { await navigator.clipboard.writeText(D.g); $("cpt").textContent = "Tersalin."; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents(document.querySelector(".gift")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $("cpt").textContent = "Teks dipilih, salin secara manual."; }
+  };
+  const f = $("rsvp");
+  if (f) {
+    const upd = () => {
+      const ok = f.att.value === "hadir", who = D.n || "tamu undangan";
+      $("nwrap").hidden = !ok;
+      const text = "Halo, saya " + who + (ok ? " akan hadir bersama total " + $("rn").value + " orang" : " mohon maaf belum bisa hadir") + " di " + jenis.toLowerCase() + " " + pria + " & " + wanita + "." + ($("rm").value.trim() ? "\n\nUcapan: " + $("rm").value.trim() : "");
+      $("wal").href = "https://wa.me/" + num(D.wa) + "?text=" + encodeURIComponent(text);
+    };
+    f.addEventListener("input", upd); f.addEventListener("change", upd); f.addEventListener("submit", e => e.preventDefault());
+    upd();
+  }
+}
+addEventListener("hashchange", render);
+render();
+</script>
