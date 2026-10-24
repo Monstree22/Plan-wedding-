@@ -1,0 +1,325 @@
+<title>Rencana Nikah</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: satu kolom sempit seperti aplikasi HP; tab di atas, ringkasan dulu, detail kemudian. */
+:root {
+  --bg: #f6f5f8;
+  --surface: #ffffff;
+  --fg: #1f1b2e;
+  --muted: #6b6680;
+  --line: #e3e0ea;
+  --accent: #7a2e5b;
+  --accent-fg: #ffffff;
+  --accent-soft: #f1e3ec;
+  --good: #1f7a4d;
+  --warn: #b25e09;
+  --bad: #b3261e;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15121d; --surface: #1f1b2b; --fg: #efecf6; --muted: #a29cb8; --line: #332e44;
+    --accent: #e08ac0; --accent-fg: #2a0f20; --accent-soft: #3a2433;
+    --good: #5fd194; --warn: #f0a24f; --bad: #ff8a80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15121d; --surface: #1f1b2b; --fg: #efecf6; --muted: #a29cb8; --line: #332e44;
+  --accent: #e08ac0; --accent-fg: #2a0f20; --accent-soft: #3a2433;
+  --good: #5fd194; --warn: #f0a24f; --bad: #ff8a80; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45;
+  padding-block: 20px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 640px; margin: 0 auto; display: grid; gap: 16px; }
+h1, h2 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+h1 { font-size: 26px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; }
+.sub { color: var(--muted); font-size: 13px; margin: 2px 0 0; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.tabs button { flex: 1 0 auto; border: 0; background: none; color: var(--muted); font: 600 14px var(--font-body); padding: 9px 14px; border-radius: 9px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.row > * { min-width: 0; }
+label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .02em; text-transform: uppercase; flex: 1 1 140px; }
+input, select { font: 400 15px var(--font-body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
+input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.btn { border: 0; background: var(--accent); color: var(--accent-fg); font: 600 14px var(--font-body); padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+.btn.ghost { background: var(--accent-soft); color: var(--accent); }
+.x { border: 0; background: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+.x:hover { color: var(--bad); }
+.count { display: flex; gap: 12px; flex-wrap: wrap; }
+.count div { flex: 1 1 120px; background: var(--accent-soft); border-radius: 10px; padding: 12px; }
+.count b { display: block; font: 700 28px var(--font-display); color: var(--accent); font-variant-numeric: tabular-nums; }
+.count span { font-size: 12px; color: var(--muted); }
+.bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.task { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); }
+.task:first-of-type { border-top: 0; }
+.task .body { flex: 1; min-width: 0; }
+.task.done .t { text-decoration: line-through; color: var(--muted); }
+.meta { font-size: 12px; color: var(--muted); }
+.meta.late { color: var(--bad); font-weight: 600; }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+.pill.good { color: var(--good); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 520px; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 6px 4px; }
+td { padding: 4px; border-top: 1px solid var(--line); }
+td input { padding: 7px 8px; }
+.num { text-align: right; }
+.over { color: var(--bad); font-weight: 600; }
+.empty { color: var(--muted); text-align: center; padding: 16px 0; }
+.themebtn { position: absolute; }
+@media (prefers-reduced-motion: no-preference) { .bar i { transition: width .3s; } }
+</style>
+
+<main>
+  <header>
+    <h1>Rencana Nikah</h1>
+    <p class="sub" id="countdown"></p>
+  </header>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+  <section id="view"></section>
+</main>
+
+<script>
+const TABS = [["ringkasan","Ringkasan"],["checklist","Checklist"],["budget","Budget"],["tamu","Tamu"]];
+const SEED = [
+  // ref: L = tanggal lamaran, W = tanggal wedding; m = berapa bulan sebelumnya
+  ["Obrolan berdua: visi, budget, 3 prioritas","Fondasi","W",12],
+  ["Bicara dengan orang tua: restu, adat, kontribusi biaya","Fondasi","W",12],
+  ["Buka tabungan khusus pernikahan","Fondasi","W",12],
+  ["Tentukan konsep lamaran dan lokasi","Lamaran","L",2],
+  ["Beli cincin","Lamaran","L",2],
+  ["Siapkan seserahan (daftar, belanja, hias)","Lamaran","L",1.5],
+  ["Pesan katering lamaran","Lamaran","L",1],
+  ["Pesan fotografer lamaran","Lamaran","L",1],
+  ["Pesan busana keluarga untuk lamaran","Lamaran","L",1],
+  ["Kirim undangan lamaran","Lamaran","L",0.5],
+  ["Briefing juru bicara dan urutan acara lamaran","Lamaran","L",0.25],
+  ["Survei dan booking venue","Venue & vendor","W",11],
+  ["Booking Wedding Organizer (jika dipakai)","Venue & vendor","W",10],
+  ["Booking katering","Venue & vendor","W",10],
+  ["Booking dokumentasi foto dan video","Venue & vendor","W",9],
+  ["Booking MUA","Venue & vendor","W",9],
+  ["Booking dekorasi","Venue & vendor","W",9],
+  ["Pilih MC dan hiburan","Venue & vendor","W",7],
+  ["Pesan busana pengantin dan keluarga","Busana","W",7],
+  ["Fitting pertama","Busana","W",4],
+  ["Fitting kedua","Busana","W",2],
+  ["Tes menu katering","Venue & vendor","W",5],
+  ["Foto pre-wedding (opsional)","Acara","W",5],
+  ["Daftar tamu final","Tamu","W",4],
+  ["Desain dan cetak undangan","Tamu","W",3],
+  ["Sebar undangan","Tamu","W",2],
+  ["Urus dokumen nikah (KUA/gereja/catatan sipil)","Dokumen","W",3],
+  ["Kursus atau bimbingan pranikah","Dokumen","W",3],
+  ["Pesan seserahan dan mahar","Acara","W",2],
+  ["Konfirmasi ulang semua vendor secara tertulis","Venue & vendor","W",1],
+  ["Rundown final dan gladi bersih","Acara","W",0.5],
+  ["Konfirmasi RSVP dan denah duduk","Tamu","W",0.5],
+  ["Packing koper (akad, resepsi, bulan madu)","Acara","W",0.25],
+  ["Pelunasan vendor","Venue & vendor","W",0.1],
+  ["Update KTP dan KK setelah nikah","Dokumen","W",-1],
+  ["Kirim ucapan terima kasih ke tamu dan vendor","Acara","W",-1]
+];
+const BUDGET_SEED = ["Venue & katering","Dekorasi","MUA & busana","Foto & video","MC & hiburan","Undangan & souvenir","Seserahan & mahar","Admin & transport","Dana cadangan (10%)"];
+
+let S = load();
+let tab = (location.hash || "").slice(1);
+if (!TABS.some(t => t[0] === tab)) tab = "ringkasan";
+
+function load() {
+  try { const s = JSON.parse(localStorage.getItem("rencana-nikah")); if (s && s.tasks) return s; } catch (e) {}
+  return {
+    lamaran: "", wedding: "", target: 0,
+    tasks: SEED.map((t, i) => ({ id: "s" + i, t: t[0], cat: t[1], ref: t[2], m: t[3], done: false })),
+    budget: BUDGET_SEED.map((n, i) => ({ id: "b" + i, name: n, est: 0, act: 0, paid: 0 })),
+    guests: []
+  };
+}
+function save() { try { localStorage.setItem("rencana-nikah", JSON.stringify(S)); } catch (e) {} }
+const uid = () => Math.random().toString(36).slice(2, 9);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const rp = n => "Rp " + new Intl.NumberFormat("id-ID").format(Math.round(n || 0));
+const $ = id => document.getElementById(id);
+
+function dueDate(t) {
+  const base = t.ref === "L" ? S.lamaran : S.wedding;
+  if (!base) return null;
+  const d = new Date(base + "T00:00:00");
+  const whole = Math.trunc(t.m), days = Math.round((t.m - whole) * 30);
+  d.setMonth(d.getMonth() - whole); d.setDate(d.getDate() - days);
+  return d;
+}
+const fmtDate = d => d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+function daysTo(iso) { return iso ? Math.round((new Date(iso + "T00:00:00") - today()) / 864e5) : null; }
+
+function renderCountdown() {
+  const parts = [];
+  const l = daysTo(S.lamaran), w = daysTo(S.wedding);
+  if (l !== null && l >= 0) parts.push("Lamaran " + l + " hari lagi");
+  if (w !== null && w >= 0) parts.push("Nikah " + w + " hari lagi");
+  $("countdown").textContent = parts.join(" · ") || "Isi tanggal di Ringkasan untuk mulai.";
+}
+
+function renderTabs() {
+  $("tabs").innerHTML = TABS.map(([k, n]) => `<button role="tab" aria-selected="${k === tab}" data-tab="${k}">${n}</button>`).join("");
+}
+
+function view() {
+  renderCountdown(); renderTabs();
+  $("view").innerHTML = ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, tamu: vTamu })[tab]();
+}
+
+function vRingkasan() {
+  const done = S.tasks.filter(t => t.done).length, total = S.tasks.length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  const act = S.budget.reduce((a, b) => a + (+b.act || 0), 0);
+  const paid = S.budget.reduce((a, b) => a + (+b.paid || 0), 0);
+  const hadir = S.guests.filter(g => g.status === "hadir").reduce((a, g) => a + (+g.n || 0), 0);
+  const next = S.tasks.filter(t => !t.done).map(t => ({ t, d: dueDate(t) })).filter(x => x.d)
+    .sort((a, b) => a.d - b.d).slice(0, 5);
+  return `
+  <div style="display:grid;gap:16px">
+    <div class="card">
+      <h2>Tanggal penting</h2>
+      <div class="row">
+        <label>Tanggal lamaran<input type="date" id="dl" value="${S.lamaran}"></label>
+        <label>Tanggal nikah<input type="date" id="dw" value="${S.wedding}"></label>
+      </div>
+      <p class="sub">Tenggat checklist dihitung otomatis dari dua tanggal ini.</p>
+    </div>
+    <div class="card">
+      <h2>Progres</h2>
+      <div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
+      <div class="count">
+        <div><b>${done}/${total}</b><span>tugas selesai</span></div>
+        <div><b>${S.guests.length}</b><span>undangan · ${hadir} orang konfirmasi hadir</span></div>
+        <div><b style="font-size:20px">${rp(paid)}</b><span>sudah dibayar dari ${rp(act)}</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Tugas terdekat</h2>
+      ${next.length ? next.map(({ t, d }) => `<div class="task"><div class="body"><div class="t">${esc(t.t)}</div>
+        <div class="meta ${d < today() ? "late" : ""}">${d < today() ? "Lewat tenggat · " : ""}${fmtDate(d)}</div></div></div>`).join("")
+        : `<p class="empty">Isi tanggal lamaran atau nikah untuk melihat tugas terdekat.</p>`}
+    </div>
+  </div>`;
+}
+
+function vChecklist() {
+  const cats = [...new Set(S.tasks.map(t => t.cat))];
+  const sections = cats.map(c => {
+    const items = S.tasks.filter(t => t.cat === c)
+      .sort((a, b) => (dueDate(a) || 0) - (dueDate(b) || 0) || b.m - a.m);
+    return `<div class="card"><h2>${esc(c)} <span class="meta">${items.filter(t => t.done).length}/${items.length}</span></h2>
+      <div>${items.map(t => {
+        const d = dueDate(t), late = d && !t.done && d < today();
+        return `<div class="task ${t.done ? "done" : ""}">
+          <input type="checkbox" data-done="${t.id}" ${t.done ? "checked" : ""} aria-label="Selesai: ${esc(t.t)}">
+          <div class="body"><div class="t">${esc(t.t)}</div>
+          <div class="meta ${late ? "late" : ""}">${d ? (late ? "Lewat tenggat · " : "Tenggat ") + fmtDate(d) : (t.ref === "L" ? "Sebelum lamaran" : "Sebelum nikah")}</div></div>
+          <button class="x" data-deltask="${t.id}" aria-label="Hapus tugas">×</button></div>`;
+      }).join("")}</div></div>`;
+  }).join("");
+  return `<div style="display:grid;gap:16px">${sections}
+    <form class="card" id="addtask">
+      <h2>Tambah tugas</h2>
+      <div class="row">
+        <label style="flex-basis:100%">Tugas<input id="nt" required placeholder="mis. Sewa mobil pengantin"></label>
+        <label>Kategori<input id="nc" list="cats" value="Acara"><datalist id="cats">${cats.map(c => `<option value="${esc(c)}">`).join("")}</datalist></label>
+        <label>Acuan<select id="nr"><option value="W">Sebelum nikah</option><option value="L">Sebelum lamaran</option></select></label>
+        <label>Berapa bulan sebelumnya<input id="nm" type="number" step="0.25" value="1"></label>
+        <button class="btn">Tambah</button>
+      </div>
+    </form></div>`;
+}
+
+function vBudget() {
+  const est = S.budget.reduce((a, b) => a + (+b.est || 0), 0);
+  const act = S.budget.reduce((a, b) => a + (+b.act || 0), 0);
+  const paid = S.budget.reduce((a, b) => a + (+b.paid || 0), 0);
+  const over = S.target && act > S.target;
+  return `<div style="display:grid;gap:16px">
+    <div class="card">
+      <div class="row"><label>Budget maksimal (Rp)<input type="number" id="bt" min="0" value="${S.target || ""}" placeholder="mis. 150000000"></label></div>
+      <div class="count">
+        <div><b style="font-size:20px">${rp(est)}</b><span>estimasi</span></div>
+        <div><b style="font-size:20px" class="${over ? "over" : ""}">${rp(act)}</b><span>biaya aktual${S.target ? " · sisa " + rp(S.target - act) : ""}</span></div>
+        <div><b style="font-size:20px">${rp(paid)}</b><span>sudah dibayar · belum ${rp(act - paid)}</span></div>
+      </div>
+    </div>
+    <div class="card"><div class="tbl"><table>
+      <thead><tr><th>Pos</th><th class="num">Estimasi</th><th class="num">Aktual</th><th class="num">Dibayar</th><th></th></tr></thead>
+      <tbody>${S.budget.map(b => `<tr>
+        <td><input data-b="${b.id}" data-f="name" value="${esc(b.name)}" aria-label="Nama pos"></td>
+        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="est" value="${b.est || ""}" aria-label="Estimasi"></td>
+        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="act" value="${b.act || ""}" aria-label="Aktual"></td>
+        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="paid" value="${b.paid || ""}" aria-label="Dibayar"></td>
+        <td><button class="x" data-delb="${b.id}" aria-label="Hapus pos">×</button></td></tr>`).join("")}</tbody>
+    </table></div>
+    <div><button class="btn ghost" id="addb">Tambah pos</button></div></div>
+  </div>`;
+}
+
+const SIDES = { "pria": "Keluarga pria", "wanita": "Keluarga wanita", "teman": "Teman", "kolega": "Kolega" };
+const STAT = { "belum": ["Belum dikirim", ""], "terkirim": ["Terkirim", "warn"], "hadir": ["Hadir", "good"], "tidak": ["Tidak hadir", "bad"] };
+function vTamu() {
+  const tot = S.guests.reduce((a, g) => a + (+g.n || 0), 0);
+  const hadir = S.guests.filter(g => g.status === "hadir").reduce((a, g) => a + (+g.n || 0), 0);
+  const rows = S.guests.map(g => `<div class="task">
+    <div class="body"><div class="t">${esc(g.name)} <span class="meta">· ${g.n} orang · ${SIDES[g.side]}</span></div></div>
+    <select data-gs="${g.id}" aria-label="Status ${esc(g.name)}" style="width:auto">${Object.entries(STAT).map(([k, v]) => `<option value="${k}" ${g.status === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
+    <button class="x" data-delg="${g.id}" aria-label="Hapus tamu">×</button></div>`).join("");
+  return `<div style="display:grid;gap:16px">
+    <div class="card"><div class="count">
+      <div><b>${tot}</b><span>total orang diundang</span></div>
+      <div><b>${hadir}</b><span>konfirmasi hadir</span></div></div></div>
+    <div class="card"><h2>Daftar tamu</h2>${rows || `<p class="empty">Belum ada tamu. Tambahkan di bawah.</p>`}</div>
+    <form class="card" id="addguest"><h2>Tambah tamu</h2><div class="row">
+      <label style="flex-basis:100%">Nama<input id="gn" required placeholder="mis. Keluarga Pak Hendra"></label>
+      <label>Jumlah orang<input id="gc" type="number" min="1" value="1"></label>
+      <label>Dari pihak<select id="gside">${Object.entries(SIDES).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
+      <button class="btn">Tambah</button></div></form>
+  </div>`;
+}
+
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-tab],[data-deltask],[data-delb],[data-delg],#addb");
+  if (!el) return;
+  if (el.dataset.tab) { tab = el.dataset.tab; try { history.replaceState(null, "", "#" + tab); } catch (x) {} }
+  else if (el.dataset.deltask) S.tasks = S.tasks.filter(t => t.id !== el.dataset.deltask);
+  else if (el.dataset.delb) S.budget = S.budget.filter(b => b.id !== el.dataset.delb);
+  else if (el.dataset.delg) S.guests = S.guests.filter(g => g.id !== el.dataset.delg);
+  else if (el.id === "addb") S.budget.push({ id: uid(), name: "Pos baru", est: 0, act: 0, paid: 0 });
+  save(); view();
+});
+document.addEventListener("change", e => {
+  const el = e.target;
+  if (el.id === "dl") S.lamaran = el.value;
+  else if (el.id === "dw") S.wedding = el.value;
+  else if (el.id === "bt") S.target = +el.value || 0;
+  else if (el.dataset.done) S.tasks.find(t => t.id === el.dataset.done).done = el.checked;
+  else if (el.dataset.b) { const b = S.budget.find(x => x.id === el.dataset.b); b[el.dataset.f] = el.dataset.f === "name" ? el.value : (+el.value || 0); }
+  else if (el.dataset.gs) S.guests.find(g => g.id === el.dataset.gs).status = el.value;
+  else return;
+  save(); view();
+});
+document.addEventListener("submit", e => {
+  e.preventDefault();
+  if (e.target.id === "addtask") {
+    S.tasks.push({ id: uid(), t: $("nt").value.trim(), cat: $("nc").value.trim() || "Acara", ref: $("nr").value, m: +$("nm").value || 0, done: false });
+  } else if (e.target.id === "addguest") {
+    S.guests.push({ id: uid(), name: $("gn").value.trim(), n: Math.max(1, +$("gc").value || 1), side: $("gside").value, status: "belum" });
+  }
+  save(); view();
+});
+view();
+</script>
