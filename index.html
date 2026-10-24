@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap">
 <style>
-/* Layout: satu kolom sempit seperti aplikasi HP; tab di atas, ringkasan dulu, detail kemudian. */
+/* Layout: satu kolom sempit seperti aplikasi HP; tab di atas, ringkasan dulu, detail kemudian. Data dipakai bersama lewat db. */
 :root {
   --bg: #f6f5f8;
   --surface: #ffffff;
@@ -41,17 +41,21 @@ h2 { font-size: 18px; }
 .tabs { display: flex; gap: 4px; overflow-x: auto; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .tabs button { flex: 1 0 auto; border: 0; background: none; color: var(--muted); font: 600 14px var(--font-body); padding: 9px 14px; border-radius: 9px; cursor: pointer; }
 .tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); }
-button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.stack { display: grid; gap: 16px; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
 .row > * { min-width: 0; }
 label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .02em; text-transform: uppercase; flex: 1 1 140px; }
-input, select { font: 400 15px var(--font-body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
+input, select, textarea { font: 400 15px var(--font-body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
+textarea { resize: vertical; min-height: 64px; }
 input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
 .btn { border: 0; background: var(--accent); color: var(--accent-fg); font: 600 14px var(--font-body); padding: 10px 16px; border-radius: 8px; cursor: pointer; }
 .btn.ghost { background: var(--accent-soft); color: var(--accent); }
-.x { border: 0; background: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
-.x:hover { color: var(--bad); }
+.btn[disabled] { opacity: .5; cursor: default; }
+.x { border: 0; background: none; color: var(--muted); font: 600 18px var(--font-body); cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+.x:hover, .x.armed { color: var(--bad); }
+.x.armed { font-size: 12px; }
 .count { display: flex; gap: 12px; flex-wrap: wrap; }
 .count div { flex: 1 1 120px; background: var(--accent-soft); border-radius: 10px; padding: 12px; }
 .count b { display: block; font: 700 28px var(--font-display); color: var(--accent); font-variant-numeric: tabular-nums; }
@@ -73,8 +77,22 @@ td { padding: 4px; border-top: 1px solid var(--line); }
 td input { padding: 7px 8px; }
 .num { text-align: right; }
 .over { color: var(--bad); font-weight: 600; }
-.empty { color: var(--muted); text-align: center; padding: 16px 0; }
-.themebtn { position: absolute; }
+.empty { color: var(--muted); text-align: center; padding: 16px 0; display: grid; gap: 10px; justify-items: center; }
+.notice { font-size: 13px; background: var(--accent-soft); color: var(--accent); border-radius: 8px; padding: 8px 12px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chips button { border: 1px solid var(--line); background: var(--surface); color: var(--muted); font: 600 13px var(--font-body); padding: 6px 12px; border-radius: 99px; cursor: pointer; }
+.chips button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.refs { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.ref { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: grid; align-content: start; min-width: 0; }
+.ref img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--line); }
+.ref .in { padding: 12px; display: grid; gap: 6px; min-width: 0; }
+.ref .top { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+.ref h3 { margin: 0; font: 700 16px var(--font-display); overflow-wrap: anywhere; }
+.ref a { color: var(--accent); font-weight: 600; font-size: 13px; overflow-wrap: anywhere; }
+.ref p { margin: 0; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ref select { width: auto; padding: 5px 8px; font-size: 13px; }
+.price { font-variant-numeric: tabular-nums; font-weight: 600; }
+details summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 @media (prefers-reduced-motion: no-preference) { .bar i { transition: width .3s; } }
 </style>
 
@@ -83,14 +101,15 @@ td input { padding: 7px 8px; }
     <h1>Rencana Nikah</h1>
     <p class="sub" id="countdown"></p>
   </header>
+  <div class="notice" id="notice" hidden></div>
   <nav class="tabs" role="tablist" id="tabs"></nav>
   <section id="view"></section>
 </main>
 
 <script>
-const TABS = [["ringkasan","Ringkasan"],["checklist","Checklist"],["budget","Budget"],["tamu","Tamu"]];
-const SEED = [
-  // ref: L = tanggal lamaran, W = tanggal wedding; m = berapa bulan sebelumnya
+const TABS = [["ringkasan","Ringkasan"],["checklist","Checklist"],["budget","Budget"],["tamu","Tamu"],["referensi","Referensi"]];
+const TEMPLATE = [
+  // [tugas, kategori, acuan (L = lamaran, W = nikah), berapa bulan sebelumnya]
   ["Obrolan berdua: visi, budget, 3 prioritas","Fondasi","W",12],
   ["Bicara dengan orang tua: restu, adat, kontribusi biaya","Fondasi","W",12],
   ["Buka tabungan khusus pernikahan","Fondasi","W",12],
@@ -128,29 +147,32 @@ const SEED = [
   ["Update KTP dan KK setelah nikah","Dokumen","W",-1],
   ["Kirim ucapan terima kasih ke tamu dan vendor","Acara","W",-1]
 ];
-const BUDGET_SEED = ["Venue & katering","Dekorasi","MUA & busana","Foto & video","MC & hiburan","Undangan & souvenir","Seserahan & mahar","Admin & transport","Dana cadangan (10%)"];
+const BUDGET_TEMPLATE = ["Venue & katering","Dekorasi","MUA & busana","Foto & video","MC & hiburan","Undangan & souvenir","Seserahan & mahar","Admin & transport","Dana cadangan (10%)"];
+const REF_CATS = ["Dekorasi","Busana","MUA","Wedding Organizer","Venue","Katering","Foto & video","Seserahan","Undangan","Lainnya"];
+const REF_STATUS = { ide: ["Ide", ""], kandidat: ["Kandidat", "warn"], dipilih: ["Dipilih", "good"], ditolak: ["Ditolak", "bad"] };
+const SIDES = { pria: "Keluarga pria", wanita: "Keluarga wanita", teman: "Teman", kolega: "Kolega" };
+const STAT = { belum: ["Belum dikirim", ""], terkirim: ["Terkirim", "warn"], hadir: ["Hadir", "good"], tidak: ["Tidak hadir", "bad"] };
 
-let S = load();
+const S = { meta: { lamaran: "", wedding: "", target: 0 }, tasks: [], budget: [], guests: [], refs: [], loaded: {} };
+let db = null, userApi = null, assetsApi = null, canWrite = true, me = null, state = "loading";
 let tab = (location.hash || "").slice(1);
 if (!TABS.some(t => t[0] === tab)) tab = "ringkasan";
+let refCat = "Semua", refStatus = "semua", pendingRender = false;
+const names = {};
 
-function load() {
-  try { const s = JSON.parse(localStorage.getItem("rencana-nikah")); if (s && s.tasks) return s; } catch (e) {}
-  return {
-    lamaran: "", wedding: "", target: 0,
-    tasks: SEED.map((t, i) => ({ id: "s" + i, t: t[0], cat: t[1], ref: t[2], m: t[3], done: false })),
-    budget: BUDGET_SEED.map((n, i) => ({ id: "b" + i, name: n, est: 0, act: 0, paid: 0 })),
-    guests: []
-  };
-}
-function save() { try { localStorage.setItem("rencana-nikah", JSON.stringify(S)); } catch (e) {} }
-const uid = () => Math.random().toString(36).slice(2, 9);
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const rp = n => "Rp " + new Intl.NumberFormat("id-ID").format(Math.round(n || 0));
 const $ = id => document.getElementById(id);
+const byOrd = (a, b) => (a.ord || 0) - (b.ord || 0);
 
+function cleanUrl(u) {
+  u = (u || "").trim(); if (!u) return "";
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  try { return new URL(u).href; } catch (e) { return ""; }
+}
 function dueDate(t) {
-  const base = t.ref === "L" ? S.lamaran : S.wedding;
+  const base = t.ref === "L" ? S.meta.lamaran : S.meta.wedding;
   if (!base) return null;
   const d = new Date(base + "T00:00:00");
   const whole = Math.trunc(t.m), days = Math.round((t.m - whole) * 30);
@@ -158,25 +180,81 @@ function dueDate(t) {
   return d;
 }
 const fmtDate = d => d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
-const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
-function daysTo(iso) { return iso ? Math.round((new Date(iso + "T00:00:00") - today()) / 864e5) : null; }
+const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+const daysTo = iso => iso ? Math.round((new Date(iso + "T00:00:00") - today()) / 864e5) : null;
 
+/* ---------- penyimpanan bersama ---------- */
+async function write(fn) {
+  if (!db || !canWrite) return;
+  try { await fn(); } catch (e) {
+    if (e && e.code === "quota_exceeded") flash("Penyimpanan penuh. Hapus beberapa data lama.");
+    else flash("Gagal menyimpan. Coba lagi.");
+  }
+}
+const col = n => db.collection(n);
+const setMeta = patch => write(() => db.doc("meta/settings").set({ ...S.meta, ...patch }));
+let flashT;
+function flash(msg) { const n = $("notice"); n.textContent = msg; n.hidden = false; clearTimeout(flashT); flashT = setTimeout(updateNotice, 4000); }
+function updateNotice() {
+  const n = $("notice");
+  const msg = state === "nodb" ? "Masuk ke Claude untuk menyimpan dan berbagi data."
+    : !canWrite ? "Kamu hanya bisa melihat. Minta akses Contributor atau Editor untuk ikut mengisi." : "";
+  n.textContent = msg; n.hidden = !msg;
+}
+
+function subscribe(name, key) {
+  col(name).onSnapshot(snap => {
+    S[key] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    S.loaded[key] = true; schedule();
+  }, () => { S.loaded[key] = true; schedule(); });
+}
+function subscribeMeta() {
+  db.doc("meta/settings").onSnapshot(snap => {
+    S.meta = { lamaran: "", wedding: "", target: 0, ...(snap.exists ? snap.data() : {}) };
+    S.loaded.meta = true; schedule();
+  }, () => { S.loaded.meta = true; schedule(); });
+}
+function schedule() {
+  const a = document.activeElement;
+  if (a && $("view").contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.type !== "checkbox") { pendingRender = true; return; }
+  view();
+}
+document.addEventListener("focusout", () => { if (pendingRender) setTimeout(() => { if (pendingRender && !document.activeElement.matches("input,select,textarea")) { pendingRender = false; view(); } }, 50); });
+
+async function init() {
+  view();
+  try { db = await claude.use("db"); } catch (e) { db = null; }
+  if (!db) { state = "nodb"; updateNotice(); view(); return; }
+  state = "ready";
+  try { userApi = await claude.use("user"); } catch (e) {}
+  try { assetsApi = await claude.use("assets"); } catch (e) {}
+  if (userApi) {
+    try { me = await userApi.id(); } catch (e) {}
+    try { if ((await userApi.can("data.write")) === false) canWrite = false; } catch (e) {}
+  }
+  updateNotice();
+  subscribeMeta();
+  subscribe("tasks", "tasks"); subscribe("budget", "budget"); subscribe("guests", "guests"); subscribe("refs", "refs");
+}
+
+/* ---------- tampilan ---------- */
 function renderCountdown() {
-  const parts = [];
-  const l = daysTo(S.lamaran), w = daysTo(S.wedding);
+  const parts = [], l = daysTo(S.meta.lamaran), w = daysTo(S.meta.wedding);
   if (l !== null && l >= 0) parts.push("Lamaran " + l + " hari lagi");
   if (w !== null && w >= 0) parts.push("Nikah " + w + " hari lagi");
   $("countdown").textContent = parts.join(" · ") || "Isi tanggal di Ringkasan untuk mulai.";
 }
-
 function renderTabs() {
   $("tabs").innerHTML = TABS.map(([k, n]) => `<button role="tab" aria-selected="${k === tab}" data-tab="${k}">${n}</button>`).join("");
 }
-
 function view() {
+  pendingRender = false;
   renderCountdown(); renderTabs();
-  $("view").innerHTML = ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, tamu: vTamu })[tab]();
+  $("view").innerHTML = ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, tamu: vTamu, referensi: vReferensi })[tab]();
+  resolveNames();
 }
+const dis = () => canWrite && db ? "" : "disabled";
+const loading = () => `<p class="empty">Memuat data…</p>`;
 
 function vRingkasan() {
   const done = S.tasks.filter(t => t.done).length, total = S.tasks.length;
@@ -184,17 +262,15 @@ function vRingkasan() {
   const act = S.budget.reduce((a, b) => a + (+b.act || 0), 0);
   const paid = S.budget.reduce((a, b) => a + (+b.paid || 0), 0);
   const hadir = S.guests.filter(g => g.status === "hadir").reduce((a, g) => a + (+g.n || 0), 0);
-  const next = S.tasks.filter(t => !t.done).map(t => ({ t, d: dueDate(t) })).filter(x => x.d)
-    .sort((a, b) => a.d - b.d).slice(0, 5);
-  return `
-  <div style="display:grid;gap:16px">
+  const next = S.tasks.filter(t => !t.done).map(t => ({ t, d: dueDate(t) })).filter(x => x.d).sort((a, b) => a.d - b.d).slice(0, 5);
+  return `<div class="stack">
     <div class="card">
       <h2>Tanggal penting</h2>
       <div class="row">
-        <label>Tanggal lamaran<input type="date" id="dl" value="${S.lamaran}"></label>
-        <label>Tanggal nikah<input type="date" id="dw" value="${S.wedding}"></label>
+        <label>Tanggal lamaran<input type="date" id="dl" value="${esc(S.meta.lamaran)}" ${dis()}></label>
+        <label>Tanggal nikah<input type="date" id="dw" value="${esc(S.meta.wedding)}" ${dis()}></label>
       </div>
-      <p class="sub">Tenggat checklist dihitung otomatis dari dua tanggal ini.</p>
+      <p class="sub">Tenggat checklist dihitung otomatis dari dua tanggal ini. Semua perubahan langsung terlihat oleh pasangan.</p>
     </div>
     <div class="card">
       <h2>Progres</h2>
@@ -215,111 +291,213 @@ function vRingkasan() {
 }
 
 function vChecklist() {
+  if (state === "ready" && !S.loaded.tasks) return loading();
+  const empty = !S.tasks.length ? `<div class="card"><div class="empty"><span>Belum ada tugas.</span>
+    <button class="btn" id="tpl" ${dis()}>Pakai template 36 tugas</button></div></div>` : "";
   const cats = [...new Set(S.tasks.map(t => t.cat))];
   const sections = cats.map(c => {
-    const items = S.tasks.filter(t => t.cat === c)
-      .sort((a, b) => (dueDate(a) || 0) - (dueDate(b) || 0) || b.m - a.m);
+    const items = S.tasks.filter(t => t.cat === c).sort((a, b) => (dueDate(a) || 0) - (dueDate(b) || 0) || b.m - a.m);
     return `<div class="card"><h2>${esc(c)} <span class="meta">${items.filter(t => t.done).length}/${items.length}</span></h2>
       <div>${items.map(t => {
         const d = dueDate(t), late = d && !t.done && d < today();
         return `<div class="task ${t.done ? "done" : ""}">
-          <input type="checkbox" data-done="${t.id}" ${t.done ? "checked" : ""} aria-label="Selesai: ${esc(t.t)}">
+          <input type="checkbox" data-done="${t.id}" ${t.done ? "checked" : ""} ${dis()} aria-label="Selesai: ${esc(t.t)}">
           <div class="body"><div class="t">${esc(t.t)}</div>
           <div class="meta ${late ? "late" : ""}">${d ? (late ? "Lewat tenggat · " : "Tenggat ") + fmtDate(d) : (t.ref === "L" ? "Sebelum lamaran" : "Sebelum nikah")}</div></div>
-          <button class="x" data-deltask="${t.id}" aria-label="Hapus tugas">×</button></div>`;
+          <button class="x" data-del="tasks/${t.id}" ${dis()} aria-label="Hapus tugas">×</button></div>`;
       }).join("")}</div></div>`;
   }).join("");
-  return `<div style="display:grid;gap:16px">${sections}
+  return `<div class="stack">${empty}${sections}
     <form class="card" id="addtask">
       <h2>Tambah tugas</h2>
       <div class="row">
-        <label style="flex-basis:100%">Tugas<input id="nt" required placeholder="mis. Sewa mobil pengantin"></label>
-        <label>Kategori<input id="nc" list="cats" value="Acara"><datalist id="cats">${cats.map(c => `<option value="${esc(c)}">`).join("")}</datalist></label>
-        <label>Acuan<select id="nr"><option value="W">Sebelum nikah</option><option value="L">Sebelum lamaran</option></select></label>
-        <label>Berapa bulan sebelumnya<input id="nm" type="number" step="0.25" value="1"></label>
-        <button class="btn">Tambah</button>
+        <label style="flex-basis:100%">Tugas<input id="nt" required placeholder="mis. Sewa mobil pengantin" ${dis()}></label>
+        <label>Kategori<input id="nc" list="cats" value="Acara" ${dis()}><datalist id="cats">${cats.map(c => `<option value="${esc(c)}">`).join("")}</datalist></label>
+        <label>Acuan<select id="nr" ${dis()}><option value="W">Sebelum nikah</option><option value="L">Sebelum lamaran</option></select></label>
+        <label>Berapa bulan sebelumnya<input id="nm" type="number" step="0.25" value="1" ${dis()}></label>
+        <button class="btn" ${dis()}>Tambah</button>
       </div>
     </form></div>`;
 }
 
 function vBudget() {
-  const est = S.budget.reduce((a, b) => a + (+b.est || 0), 0);
-  const act = S.budget.reduce((a, b) => a + (+b.act || 0), 0);
-  const paid = S.budget.reduce((a, b) => a + (+b.paid || 0), 0);
-  const over = S.target && act > S.target;
-  return `<div style="display:grid;gap:16px">
+  if (state === "ready" && !(S.loaded.budget && S.loaded.meta)) return loading();
+  const items = [...S.budget].sort(byOrd);
+  const est = items.reduce((a, b) => a + (+b.est || 0), 0);
+  const act = items.reduce((a, b) => a + (+b.act || 0), 0);
+  const paid = items.reduce((a, b) => a + (+b.paid || 0), 0);
+  const over = S.meta.target && act > S.meta.target;
+  return `<div class="stack">
     <div class="card">
-      <div class="row"><label>Budget maksimal (Rp)<input type="number" id="bt" min="0" value="${S.target || ""}" placeholder="mis. 150000000"></label></div>
+      <div class="row"><label>Budget maksimal (Rp)<input type="number" id="bt" min="0" value="${S.meta.target || ""}" placeholder="mis. 150000000" ${dis()}></label></div>
       <div class="count">
         <div><b style="font-size:20px">${rp(est)}</b><span>estimasi</span></div>
-        <div><b style="font-size:20px" class="${over ? "over" : ""}">${rp(act)}</b><span>biaya aktual${S.target ? " · sisa " + rp(S.target - act) : ""}</span></div>
+        <div><b style="font-size:20px" class="${over ? "over" : ""}">${rp(act)}</b><span>biaya aktual${S.meta.target ? " · sisa " + rp(S.meta.target - act) : ""}</span></div>
         <div><b style="font-size:20px">${rp(paid)}</b><span>sudah dibayar · belum ${rp(act - paid)}</span></div>
       </div>
     </div>
-    <div class="card"><div class="tbl"><table>
+    <div class="card">
+      ${items.length ? `<div class="tbl"><table>
       <thead><tr><th>Pos</th><th class="num">Estimasi</th><th class="num">Aktual</th><th class="num">Dibayar</th><th></th></tr></thead>
-      <tbody>${S.budget.map(b => `<tr>
-        <td><input data-b="${b.id}" data-f="name" value="${esc(b.name)}" aria-label="Nama pos"></td>
-        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="est" value="${b.est || ""}" aria-label="Estimasi"></td>
-        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="act" value="${b.act || ""}" aria-label="Aktual"></td>
-        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="paid" value="${b.paid || ""}" aria-label="Dibayar"></td>
-        <td><button class="x" data-delb="${b.id}" aria-label="Hapus pos">×</button></td></tr>`).join("")}</tbody>
-    </table></div>
-    <div><button class="btn ghost" id="addb">Tambah pos</button></div></div>
+      <tbody>${items.map(b => `<tr>
+        <td><input data-b="${b.id}" data-f="name" value="${esc(b.name)}" ${dis()} aria-label="Nama pos"></td>
+        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="est" value="${b.est || ""}" ${dis()} aria-label="Estimasi"></td>
+        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="act" value="${b.act || ""}" ${dis()} aria-label="Aktual"></td>
+        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="paid" value="${b.paid || ""}" ${dis()} aria-label="Dibayar"></td>
+        <td><button class="x" data-del="budget/${b.id}" ${dis()} aria-label="Hapus pos">×</button></td></tr>`).join("")}</tbody>
+      </table></div>` : `<div class="empty"><span>Belum ada pos budget.</span><button class="btn" id="tplb" ${dis()}>Pakai 9 pos standar</button></div>`}
+      <div><button class="btn ghost" id="addb" ${dis()}>Tambah pos</button></div>
+    </div>
   </div>`;
 }
 
-const SIDES = { "pria": "Keluarga pria", "wanita": "Keluarga wanita", "teman": "Teman", "kolega": "Kolega" };
-const STAT = { "belum": ["Belum dikirim", ""], "terkirim": ["Terkirim", "warn"], "hadir": ["Hadir", "good"], "tidak": ["Tidak hadir", "bad"] };
 function vTamu() {
-  const tot = S.guests.reduce((a, g) => a + (+g.n || 0), 0);
-  const hadir = S.guests.filter(g => g.status === "hadir").reduce((a, g) => a + (+g.n || 0), 0);
-  const rows = S.guests.map(g => `<div class="task">
-    <div class="body"><div class="t">${esc(g.name)} <span class="meta">· ${g.n} orang · ${SIDES[g.side]}</span></div></div>
-    <select data-gs="${g.id}" aria-label="Status ${esc(g.name)}" style="width:auto">${Object.entries(STAT).map(([k, v]) => `<option value="${k}" ${g.status === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
-    <button class="x" data-delg="${g.id}" aria-label="Hapus tamu">×</button></div>`).join("");
-  return `<div style="display:grid;gap:16px">
+  if (state === "ready" && !S.loaded.guests) return loading();
+  const gs = [...S.guests].sort(byOrd);
+  const tot = gs.reduce((a, g) => a + (+g.n || 0), 0);
+  const hadir = gs.filter(g => g.status === "hadir").reduce((a, g) => a + (+g.n || 0), 0);
+  const rows = gs.map(g => `<div class="task">
+    <div class="body"><div class="t">${esc(g.name)} <span class="meta">· ${g.n} orang · ${SIDES[g.side] || ""}</span></div></div>
+    <select data-gs="${g.id}" ${dis()} aria-label="Status ${esc(g.name)}" style="width:auto">${Object.entries(STAT).map(([k, v]) => `<option value="${k}" ${g.status === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
+    <button class="x" data-del="guests/${g.id}" ${dis()} aria-label="Hapus tamu">×</button></div>`).join("");
+  return `<div class="stack">
     <div class="card"><div class="count">
       <div><b>${tot}</b><span>total orang diundang</span></div>
       <div><b>${hadir}</b><span>konfirmasi hadir</span></div></div></div>
     <div class="card"><h2>Daftar tamu</h2>${rows || `<p class="empty">Belum ada tamu. Tambahkan di bawah.</p>`}</div>
     <form class="card" id="addguest"><h2>Tambah tamu</h2><div class="row">
-      <label style="flex-basis:100%">Nama<input id="gn" required placeholder="mis. Keluarga Pak Hendra"></label>
-      <label>Jumlah orang<input id="gc" type="number" min="1" value="1"></label>
-      <label>Dari pihak<select id="gside">${Object.entries(SIDES).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
-      <button class="btn">Tambah</button></div></form>
+      <label style="flex-basis:100%">Nama<input id="gn" required placeholder="mis. Keluarga Pak Hendra" ${dis()}></label>
+      <label>Jumlah orang<input id="gc" type="number" min="1" value="1" ${dis()}></label>
+      <label>Dari pihak<select id="gside" ${dis()}>${Object.entries(SIDES).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
+      <button class="btn" ${dis()}>Tambah</button></div></form>
   </div>`;
 }
 
-document.addEventListener("click", e => {
-  const el = e.target.closest("[data-tab],[data-deltask],[data-delb],[data-delg],#addb");
+function vReferensi() {
+  if (state === "ready" && !S.loaded.refs) return loading();
+  const all = [...S.refs].sort((a, b) => (b.ord || 0) - (a.ord || 0));
+  const list = all.filter(r => (refCat === "Semua" || r.cat === refCat) && (refStatus === "semua" || r.status === refStatus));
+  const cards = list.map(r => {
+    const link = cleanUrl(r.url);
+    const img = r.img ? `<img src="/_blob/${esc(r.img)}" alt="${esc(r.title)}" loading="lazy">` : "";
+    return `<article class="ref">${img}<div class="in">
+      <div class="top"><span class="pill">${esc(r.cat)}</span>
+        <button class="x" data-del="refs/${r.id}" ${dis()} aria-label="Hapus referensi">×</button></div>
+      <h3>${esc(r.title)}</h3>
+      ${r.price ? `<div class="price">${rp(r.price)}</div>` : ""}
+      ${link ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">Buka tautan</a>` : ""}
+      ${r.contact ? `<div class="meta">Kontak: ${esc(r.contact)}</div>` : ""}
+      ${r.note ? `<p>${esc(r.note)}</p>` : ""}
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <select data-rs="${r.id}" ${dis()} aria-label="Status ${esc(r.title)}">${Object.entries(REF_STATUS).map(([k, v]) => `<option value="${k}" ${r.status === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
+        <span class="meta" data-by="${esc(r.by || "")}"></span></div>
+    </div></article>`;
+  }).join("");
+  return `<div class="stack">
+    <div class="card">
+      <div class="chips" role="group" aria-label="Kategori">${["Semua", ...REF_CATS].map(c => `<button data-rc="${esc(c)}" aria-pressed="${refCat === c}">${esc(c)}</button>`).join("")}</div>
+      <div class="chips" role="group" aria-label="Status">${[["semua", "Semua status"], ...Object.entries(REF_STATUS).map(([k, v]) => [k, v[0]])].map(([k, n]) => `<button data-rst="${k}" aria-pressed="${refStatus === k}">${n}</button>`).join("")}</div>
+    </div>
+    ${list.length ? `<div class="refs">${cards}</div>` : `<div class="card"><p class="empty">${all.length ? "Tidak ada referensi dengan filter ini." : "Belum ada referensi. Simpan ide dekor, busana, vendor WO atau MUA di bawah."}</p></div>`}
+    <form class="card" id="addref">
+      <h2>Simpan referensi</h2>
+      <div class="row">
+        <label style="flex-basis:100%">Nama / judul<input id="rt" required placeholder="mis. Dekor rustic pelaminan bunga kering" ${dis()}></label>
+        <label>Kategori<select id="rcat" ${dis()}>${REF_CATS.map(c => `<option>${esc(c)}</option>`).join("")}</select></label>
+        <label>Status<select id="rst" ${dis()}>${Object.entries(REF_STATUS).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join("")}</select></label>
+        <label style="flex-basis:100%">Tautan (Instagram, Pinterest, website)<input id="ru" inputmode="url" placeholder="instagram.com/..." ${dis()}></label>
+      </div>
+      <details><summary>Harga, kontak, catatan, foto</summary>
+        <div class="row" style="margin-top:10px">
+          <label>Harga (Rp)<input id="rp" type="number" min="0" ${dis()}></label>
+          <label>Kontak<input id="rk" placeholder="nama / nomor WA" ${dis()}></label>
+          <label style="flex-basis:100%">Catatan<textarea id="rn" placeholder="paket, yang suka, yang kurang" ${dis()}></textarea></label>
+          ${assetsApi ? `<label style="flex-basis:100%">Foto<input id="ri" type="file" accept="image/*" ${dis()}></label>` : ""}
+        </div>
+      </details>
+      <div><button class="btn" id="rsub" ${dis()}>Simpan</button></div>
+    </form>
+  </div>`;
+}
+
+async function resolveNames() {
+  const els = [...document.querySelectorAll("[data-by]")];
+  const ids = [...new Set(els.map(e => e.dataset.by).filter(Boolean))];
+  const need = ids.filter(i => !(i in names));
+  if (need.length && userApi && userApi.profiles) {
+    try { const ps = await userApi.profiles(need); need.forEach(i => { names[i] = (ps[i] && ps[i].name) || ""; }); } catch (e) {}
+  }
+  els.forEach(e => { const i = e.dataset.by; if (i) e.textContent = "oleh " + (i === me ? "kamu" : (names[i] || "pasangan")); });
+}
+
+async function shrink(file) {
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, 1200 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("gagal")), "image/jpeg", 0.82));
+}
+
+/* ---------- aksi ---------- */
+document.addEventListener("click", async e => {
+  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],#addb,#tpl,#tplb");
   if (!el) return;
-  if (el.dataset.tab) { tab = el.dataset.tab; try { history.replaceState(null, "", "#" + tab); } catch (x) {} }
-  else if (el.dataset.deltask) S.tasks = S.tasks.filter(t => t.id !== el.dataset.deltask);
-  else if (el.dataset.delb) S.budget = S.budget.filter(b => b.id !== el.dataset.delb);
-  else if (el.dataset.delg) S.guests = S.guests.filter(g => g.id !== el.dataset.delg);
-  else if (el.id === "addb") S.budget.push({ id: uid(), name: "Pos baru", est: 0, act: 0, paid: 0 });
-  save(); view();
+  if (el.dataset.tab) { tab = el.dataset.tab; try { history.replaceState(null, "", "#" + tab); } catch (x) {} view(); }
+  else if (el.dataset.rc) { refCat = el.dataset.rc; view(); }
+  else if (el.dataset.rst) { refStatus = el.dataset.rst; view(); }
+  else if (el.dataset.del) {
+    if (!el.classList.contains("armed")) {
+      el.classList.add("armed"); el.textContent = "Hapus?";
+      setTimeout(() => { if (el.isConnected) { el.classList.remove("armed"); el.textContent = "×"; } }, 3000);
+      return;
+    }
+    const [c, id] = el.dataset.del.split("/");
+    const doc = S.refs.find(r => r.id === id && c === "refs");
+    write(async () => { await db.doc(el.dataset.del).delete(); });
+    if (doc && doc.img && assetsApi) { try { await assetsApi.delete(doc.img); } catch (x) {} }
+  }
+  else if (el.id === "addb") write(() => col("budget").doc(uid()).set({ name: "Pos baru", est: 0, act: 0, paid: 0, ord: Date.now() }));
+  else if (el.id === "tpl") {
+    el.disabled = true; el.textContent = "Menyimpan…";
+    await write(async () => { for (let i = 0; i < TEMPLATE.length; i++) { const t = TEMPLATE[i];
+      await db.doc("tasks/t" + String(i).padStart(2, "0")).set({ t: t[0], cat: t[1], ref: t[2], m: t[3], done: false, ord: i }); } });
+  }
+  else if (el.id === "tplb") {
+    el.disabled = true; el.textContent = "Menyimpan…";
+    await write(async () => { for (let i = 0; i < BUDGET_TEMPLATE.length; i++)
+      await db.doc("budget/b" + String(i).padStart(2, "0")).set({ name: BUDGET_TEMPLATE[i], est: 0, act: 0, paid: 0, ord: i }); });
+  }
 });
 document.addEventListener("change", e => {
   const el = e.target;
-  if (el.id === "dl") S.lamaran = el.value;
-  else if (el.id === "dw") S.wedding = el.value;
-  else if (el.id === "bt") S.target = +el.value || 0;
-  else if (el.dataset.done) S.tasks.find(t => t.id === el.dataset.done).done = el.checked;
-  else if (el.dataset.b) { const b = S.budget.find(x => x.id === el.dataset.b); b[el.dataset.f] = el.dataset.f === "name" ? el.value : (+el.value || 0); }
-  else if (el.dataset.gs) S.guests.find(g => g.id === el.dataset.gs).status = el.value;
-  else return;
-  save(); view();
+  if (el.id === "dl") setMeta({ lamaran: el.value });
+  else if (el.id === "dw") setMeta({ wedding: el.value });
+  else if (el.id === "bt") setMeta({ target: +el.value || 0 });
+  else if (el.dataset.done) write(() => db.doc("tasks/" + el.dataset.done).update({ done: el.checked }));
+  else if (el.dataset.b) write(() => db.doc("budget/" + el.dataset.b).update({ [el.dataset.f]: el.dataset.f === "name" ? el.value : (+el.value || 0) }));
+  else if (el.dataset.gs) write(() => db.doc("guests/" + el.dataset.gs).update({ status: el.value }));
+  else if (el.dataset.rs) write(() => db.doc("refs/" + el.dataset.rs).update({ status: el.value }));
 });
-document.addEventListener("submit", e => {
+document.addEventListener("submit", async e => {
   e.preventDefault();
-  if (e.target.id === "addtask") {
-    S.tasks.push({ id: uid(), t: $("nt").value.trim(), cat: $("nc").value.trim() || "Acara", ref: $("nr").value, m: +$("nm").value || 0, done: false });
-  } else if (e.target.id === "addguest") {
-    S.guests.push({ id: uid(), name: $("gn").value.trim(), n: Math.max(1, +$("gc").value || 1), side: $("gside").value, status: "belum" });
+  const id = e.target.id;
+  if (id === "addtask") {
+    const f = { t: $("nt").value.trim(), cat: $("nc").value.trim() || "Acara", ref: $("nr").value, m: +$("nm").value || 0, done: false, ord: Date.now() };
+    e.target.reset(); write(() => col("tasks").doc(uid()).set(f));
+  } else if (id === "addguest") {
+    const f = { name: $("gn").value.trim(), n: Math.max(1, +$("gc").value || 1), side: $("gside").value, status: "belum", ord: Date.now() };
+    e.target.reset(); write(() => col("guests").doc(uid()).set(f));
+  } else if (id === "addref") {
+    const btn = $("rsub"); btn.disabled = true; btn.textContent = "Menyimpan…";
+    const f = { title: $("rt").value.trim(), cat: $("rcat").value, status: $("rst").value, url: cleanUrl($("ru").value),
+      price: +$("rp").value || 0, contact: $("rk").value.trim(), note: $("rn").value.trim(), by: me || "", ord: Date.now() };
+    const file = $("ri") && $("ri").files[0];
+    if (file && assetsApi) {
+      try { const up = await assetsApi.upload(await shrink(file)); f.img = up.id; } catch (x) { flash("Foto tidak bisa diunggah. Referensi disimpan tanpa foto."); }
+    }
+    await write(() => col("refs").doc(uid()).set(f));
+    refCat = "Semua"; refStatus = "semua"; view();
   }
-  save(); view();
 });
-view();
+init();
 </script>
