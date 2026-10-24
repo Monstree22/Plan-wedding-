@@ -139,6 +139,7 @@ a.btn { text-decoration: none; display: inline-block; }
   <section id="view"></section>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script>
 const TABS = [["ringkasan","Ringkasan"],["checklist","Checklist"],["budget","Budget"],["vendor","Vendor"],["tamu","Tamu"],["undangan","Undangan"],["referensi","Referensi"],["seserahan","Seserahan"],["harih","Hari-H"],["jurnal","Jurnal"]];
 const INVITE_URL = "https://claude.ai/artifact/K1zvvkPmP2PkMC6J1rAudw";
@@ -616,10 +617,45 @@ const EXPORTS = {
   seserahan: ["Seserahan", "seserahan-mahar.csv", () => [["Barang", "Jenis", "Harga", "Status"], ...[...S.seserahan].sort(byOrd).map(x => [x.name, x.kind, x.price || 0, SES_STATUS[x.status] || ""])]],
   rundown: ["Rundown", "rundown-acara.csv", () => [["Hari", "Jam", "Acara", "PIC", "Catatan"], ...[...S.rundown].sort((a, b) => (a.day || "Hari-H").localeCompare(b.day || "Hari-H") || (a.time || "").localeCompare(b.time || "")).map(r => [r.day || "Hari-H", r.time || "", r.title, r.pic || "", r.note || ""])]]
 };
+const MONEY = { budget: [1, 2, 3], vendor: [3, 4, 7], tamu: [5], seserahan: [2] };
+async function buildXlsx(keys) {
+  const wb = new ExcelJS.Workbook();
+  keys.forEach(k => {
+    const ex = EXPORTS[k], money = MONEY[k] || [], data = ex[2](), n = data.length, cols = data[0].length;
+    const ws = wb.addWorksheet(ex[0], { views: [{ state: "frozen", ySplit: 1 }] });
+    ws.addRows(data);
+    for (let c = 0; c < cols; c++) {
+      const col = ws.getColumn(c + 1);
+      const len = Math.max(...data.map(r => String(r[c] == null ? "" : r[c]).length));
+      col.width = Math.min(48, Math.max(11, len + 3));
+      if (money.includes(c)) col.numFmt = '"Rp" #,##0';
+    }
+    ws.eachRow((row, i) => row.eachCell(cell => {
+      cell.border = { bottom: { style: "thin", color: { argb: "FFD3DDCF" } } };
+      cell.alignment = { vertical: "middle", wrapText: true, horizontal: money.includes(cell.col - 1) && i > 1 ? "right" : "left" };
+    }));
+    const head = ws.getRow(1); head.height = 24;
+    head.eachCell(cell => { cell.font = { bold: true, color: { argb: "FFFFFFFF" } }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F6B52" } }; });
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols } };
+    if (money.length && n > 1) {
+      const tot = ws.addRow(["Total"]);
+      money.forEach(c => { const sum = data.slice(1).reduce((a, r) => a + (+r[c] || 0), 0); const L = ws.getColumn(c + 1).letter; tot.getCell(c + 1).value = { formula: `SUM(${L}2:${L}${n})`, result: sum }; tot.getCell(c + 1).numFmt = '"Rp" #,##0'; });
+      tot.eachCell({ includeEmpty: true }, cell => { cell.font = { bold: true }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE3EBDD" } }; });
+    }
+  });
+  return wb.xlsx.writeBuffer();
+}
+async function exportFile(key) {
+  if (typeof ExcelJS === "undefined") { flash("Pustaka Excel belum termuat. Muat ulang halaman lalu coba lagi."); return; }
+  const keys = key === "all" ? Object.keys(EXPORTS) : [key];
+  const filename = key === "all" ? "rencana-nikah.xlsx" : EXPORTS[key][1].replace(/\.csv$/, ".xlsx");
+  try { await dlApi.save({ filename, data: new Blob([await buildXlsx(keys)]) }); }
+  catch (x) { if (!x || x.code !== "declined") flash("File tidak bisa disimpan di tampilan ini."); }
+}
 function exportCard() {
   if (!dlApi) return "";
-  return `<div class="card"><h2>Ekspor ke file</h2><p class="sub">Simpan sebagai CSV untuk dibuka di Excel atau Google Sheets, atau dikirim ke keluarga.</p>
-    <div class="exports">${Object.entries(EXPORTS).map(([k, v]) => `<button class="btn ghost" data-export="${k}">${v[0]}</button>`).join("")}</div></div>`;
+  return `<div class="card"><h2>Ekspor ke file</h2><p class="sub">Simpan sebagai file Excel yang sudah dirapikan, siap dibuka di Excel atau Google Sheets atau dikirim ke keluarga.</p>
+    <div class="exports">${Object.entries(EXPORTS).map(([k, v]) => `<button class="btn ghost" data-export="${k}">${v[0]}</button>`).join("")}<button class="btn" data-export="all">Semua sekaligus</button></div></div>`;
 }
 
 /* ---------- undangan online ---------- */
@@ -715,8 +751,7 @@ document.addEventListener("click", async e => {
   if (el.dataset.sent) { markSent(el.dataset.sent); return; }
   if (el.dataset.copy) { copyInvite(el.dataset.copy); return; }
   if (el.dataset.export) {
-    const ex = EXPORTS[el.dataset.export];
-    try { await dlApi.save({ filename: ex[1], data: csv(ex[2]()) }); } catch (x) { if (!x || x.code !== "declined") flash("File tidak bisa disimpan di tampilan ini."); }
+    exportFile(el.dataset.export);
     return;
   }
   if (el.dataset.tab) { tab = el.dataset.tab; try { history.replaceState(null, "", "#" + tab); } catch (x) {} view(); }
