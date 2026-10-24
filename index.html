@@ -631,16 +631,19 @@ async function buildXlsx(keys) {
       if (money.includes(c)) col.numFmt = '"Rp" #,##0';
     }
     ws.eachRow((row, i) => row.eachCell(cell => {
+      cell.font = { name: "Calibri", size: 11 };
       cell.border = { bottom: { style: "thin", color: { argb: "FFD3DDCF" } } };
       cell.alignment = { vertical: "middle", wrapText: true, horizontal: money.includes(cell.col - 1) && i > 1 ? "right" : "left" };
     }));
     const head = ws.getRow(1); head.height = 24;
-    head.eachCell(cell => { cell.font = { bold: true, color: { argb: "FFFFFFFF" } }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F6B52" } }; });
+    head.eachCell(cell => { cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFFFFFFF" } }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F6B52" } }; });
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols } };
+    ws.pageSetup = { paperSize: 9, orientation: cols >= 6 ? "landscape" : "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, printTitlesRow: "1:1", margins: { left: 0.5, right: 0.5, top: 0.8, bottom: 0.7, header: 0.3, footer: 0.3 } };
+    ws.headerFooter = { oddHeader: "&C&B&A", oddFooter: "&LRencana Nikah&RHalaman &P dari &N" };
     if (money.length && n > 1) {
       const tot = ws.addRow(["Total"]);
       money.forEach(c => { const sum = data.slice(1).reduce((a, r) => a + (+r[c] || 0), 0); const L = ws.getColumn(c + 1).letter; tot.getCell(c + 1).value = { formula: `SUM(${L}2:${L}${n})`, result: sum }; tot.getCell(c + 1).numFmt = '"Rp" #,##0'; });
-      tot.eachCell({ includeEmpty: true }, cell => { cell.font = { bold: true }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE3EBDD" } }; });
+      tot.eachCell({ includeEmpty: true }, cell => { cell.font = { name: "Calibri", size: 11, bold: true }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE3EBDD" } }; });
     }
   });
   return wb.xlsx.writeBuffer();
