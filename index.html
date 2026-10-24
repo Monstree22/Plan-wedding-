@@ -131,7 +131,7 @@ a.btn { text-decoration: none; display: inline-block; }
 
 <main>
   <header>
-    <h1>Rencana Nikah</h1>
+    <h1 id="ttl">Rencana Nikah</h1>
     <p class="sub" id="countdown"></p>
   </header>
   <div class="notice" id="notice" hidden></div>
@@ -195,7 +195,7 @@ const S = { meta: { lamaran: "", wedding: "", target: 0 }, tasks: [], budget: []
 let dlApi = null, db = null, userApi = null, assetsApi = null, canWrite = true, me = null, state = "loading";
 let tab = (location.hash || "").slice(1);
 if (!TABS.some(t => t[0] === tab)) tab = "ringkasan";
-let refCat = "Semua", refStatus = "semua", pendingRender = false;
+let refCat = "Semua", refStatus = "semua", pendingRender = false, profOpen = null;
 const names = {};
 
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
@@ -279,7 +279,8 @@ async function init() {
 
 /* ---------- tampilan ---------- */
 function renderCountdown() {
-  const parts = [], l = daysTo(S.meta.lamaran), w = daysTo(S.meta.wedding);
+  const parts = [], l = daysTo(S.meta.lamaran), w = daysTo(S.meta.wedding), iv = S.meta.invite || {};
+  $("ttl").textContent = iv.pria && iv.wanita ? iv.pria + " & " + iv.wanita : "Rencana Nikah";
   if (l !== null && l >= 0) parts.push("Lamaran " + l + " hari lagi");
   if (w !== null && w >= 0) parts.push("Nikah " + w + " hari lagi");
   $("countdown").textContent = parts.join(" · ") || "Isi tanggal di Ringkasan untuk mulai.";
@@ -305,20 +306,13 @@ function vRingkasan() {
   const next = S.tasks.filter(t => !t.done).map(t => ({ t, d: dueDate(t) })).filter(x => x.d).sort((a, b) => a.d - b.d).slice(0, 5);
   return `<div class="stack">
     ${hero()}
-    <div class="card">
-      <h2>Tanggal penting</h2>
-      <div class="row">
-        <label>Tanggal lamaran<input type="date" id="dl" value="${esc(S.meta.lamaran)}" ${dis()}></label>
-        <label>Tanggal nikah<input type="date" id="dw" value="${esc(S.meta.wedding)}" ${dis()}></label>
-      </div>
-      <p class="sub">Tenggat checklist dihitung otomatis dari dua tanggal ini. Semua perubahan langsung terlihat oleh pasangan.</p>
-    </div>
+    ${profileCard()}
     <div class="card">
       <h2>Progres</h2>
       <div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
       <div class="count">
         <div><b>${done}/${total}</b><span>tugas selesai</span></div>
-        <div><b>${S.guests.length}</b><span>undangan · ${hadir} orang konfirmasi hadir</span></div>
+        <div><b>${S.guests.length}</b><span>undangan · ${hadir} orang konfirmasi hadir${(S.meta.profile || {}).tamu ? " · target " + S.meta.profile.tamu : ""}</span></div>
         <div><b style="font-size:20px">${rp(paid)}</b><span>sudah dibayar dari ${rp(act)}</span></div>
       </div>
     </div>
@@ -333,6 +327,21 @@ function vRingkasan() {
 }
 
 const likers = id => new Set(S.votes.filter(v => v.ref === id).map(v => v.by));
+function profileCard() {
+  const iv = S.meta.invite || {}, pf = S.meta.profile || {};
+  const f = (label, scope, key, type, ph, val) => `<label>${label}<input type="${type || "text"}" data-${scope}="${key}" value="${esc(val)}" placeholder="${esc(ph || "")}" ${dis()}></label>`;
+  const hasNames = !!(iv.pria && iv.wanita), open = profOpen === null ? !hasNames : profOpen;
+  return `<details class="card" id="prof" ${open ? "open" : ""}>
+    <summary><h2 style="display:inline">Data pernikahan</h2> <span class="meta">${hasNames ? esc(iv.pria + " & " + iv.wanita) : "Isi nama dan tanggal dulu"}</span></summary>
+    <div class="row" style="margin-top:12px">
+      ${f("Nama mempelai pria", "inv", "pria", "text", "mis. Rafi", iv.pria)}${f("Nama mempelai wanita", "inv", "wanita", "text", "mis. Alya", iv.wanita)}
+      <label>Tanggal lamaran<input type="date" id="dl" value="${esc(S.meta.lamaran)}" ${dis()}></label>
+      <label>Tanggal nikah<input type="date" id="dw" value="${esc(S.meta.wedding)}" ${dis()}></label>
+      ${f("Kota", "pf", "kota", "text", "mis. Bandung", pf.kota)}${f("Tempat acara", "inv", "tempat", "text", "mis. Gedung Melati", iv.tempat)}
+      ${f("Adat atau konsep", "pf", "adat", "text", "mis. Adat Sunda, outdoor", pf.adat)}${f("Target jumlah tamu", "pf", "tamu", "number", "mis. 200", pf.tamu)}
+    </div>
+    <p class="sub">Data ini tampil di bagian atas Ringkasan dan dipakai juga di undangan online. Tenggat checklist dihitung dari dua tanggal. Semua perubahan langsung terlihat oleh pasangan.</p></details>`;
+}
 function hero() {
   const t = today(), w = daysTo(S.meta.wedding), l = daysTo(S.meta.lamaran);
   let big, cap;
@@ -356,7 +365,10 @@ function hero() {
     const stop = (label, p, extra) => `<div class="stop ${extra || ""} ${p < 9 ? "l" : p > 91 ? "r" : ""}" style="left:${p}%"><span>${label}</span></div>`;
     track = `<div class="track" aria-hidden="true"><div class="line"><i style="width:${pos(t)}%"></i></div>${L ? stop("Lamaran", pos(L)) : ""}${stop("Hari ini", pos(t), "up")}${stop("Nikah", 100)}</div>`;
   }
-  return `<div class="hero"><div><div class="big">${big}</div><div class="cap">${cap}</div></div>${chips.length ? `<div class="chips">${chips.map(c => `<span>${c}</span>`).join("")}</div>` : ""}${track}</div>`;
+  const iv = S.meta.invite || {}, pf = S.meta.profile || {};
+  const who = iv.pria && iv.wanita ? iv.pria + " & " + iv.wanita : "";
+  const info = [iv.tempat, pf.kota, pf.adat, pf.tamu ? "sekitar " + pf.tamu + " tamu" : ""].filter(Boolean);
+  return `<div class="hero"><div>${who ? `<div class="cap" style="font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">${esc(who)}</div>` : ""}<div class="big">${big}</div><div class="cap">${cap}</div>${info.length ? `<div class="cap" style="opacity:.78;margin-top:4px">${info.map(esc).join(" · ")}</div>` : ""}</div>${chips.length ? `<div class="chips">${chips.map(c => `<span>${c}</span>`).join("")}</div>` : ""}${track}</div>`;
 }
 
 function vChecklist() {
@@ -853,6 +865,7 @@ document.addEventListener("change", e => {
   else if (el.dataset.s) write(() => db.doc("seserahan/" + el.dataset.s).update({ [el.dataset.f]: val(el) }));
   else if (el.dataset.jr) write(() => db.doc("journal/" + el.dataset.jr).update({ resolved: el.checked }));
   else if (el.dataset.gm) write(() => db.doc("guests/" + el.dataset.gm).update({ mode: el.value }));
+  else if (el.dataset.pf) setMeta({ profile: { ...(S.meta.profile || {}), [el.dataset.pf]: el.value.trim() } });
   else if (el.dataset.inv) setMeta({ invite: { ...(S.meta.invite || {}), [el.dataset.inv]: el.value.trim() } });
 });
 document.addEventListener("submit", async e => {
@@ -888,5 +901,6 @@ document.addEventListener("submit", async e => {
     refCat = "Semua"; refStatus = "semua"; view();
   }
 });
+document.addEventListener("toggle", e => { if (e.target.id === "prof") profOpen = e.target.open; }, true);
 init();
 </script>
