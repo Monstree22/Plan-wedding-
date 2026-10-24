@@ -116,6 +116,14 @@ details summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 .split { display: grid; gap: 8px; }
 .split div { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
 .split .bar { height: 6px; }
+.pay { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pay .plabel { font-weight: 600; font-size: 13px; min-width: 70px; }
+.pay input[type="number"] { flex: 1 1 110px; width: auto; }
+.pay input[type="date"] { flex: 1 1 140px; width: auto; }
+.time { font: 700 16px var(--font-display); font-variant-numeric: tabular-nums; min-width: 52px; color: var(--accent); }
+.entry p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.entry.done p { text-decoration: line-through; color: var(--muted); }
+.exports { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (prefers-reduced-motion: no-preference) { .bar i { transition: width .3s; } }
 </style>
 
@@ -130,7 +138,10 @@ details summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 </main>
 
 <script>
-const TABS = [["ringkasan","Ringkasan"],["checklist","Checklist"],["budget","Budget"],["tamu","Tamu"],["referensi","Referensi"]];
+const TABS = [["ringkasan","Ringkasan"],["checklist","Checklist"],["budget","Budget"],["vendor","Vendor"],["tamu","Tamu"],["referensi","Referensi"],["seserahan","Seserahan"],["harih","Hari-H"],["jurnal","Jurnal"]];
+const SES_STATUS = { belum: "Belum dibeli", dibeli: "Sudah dibeli", dihias: "Sudah dihias" };
+const RUN_DAYS = ["Lamaran", "Hari-H"];
+const J_KINDS = { keputusan: ["Keputusan", "good"], catatan: ["Catatan", ""], bahas: ["Perlu dibahas", "warn"] };
 const TEMPLATE = [
   // [tugas, kategori, acuan (L = lamaran, W = nikah), berapa bulan sebelumnya]
   ["Obrolan berdua: visi, budget, 3 prioritas","Fondasi","W",12],
@@ -177,8 +188,8 @@ const SIDES = { pria: "Keluarga pria", wanita: "Keluarga wanita", teman: "Teman"
 const PAYERS = { bersama: "Berdua", pria: "Pihak pria", wanita: "Pihak wanita", ortupria: "Ortu pria", ortuwanita: "Ortu wanita" };
 const STAT = { belum: ["Belum dikirim", ""], terkirim: ["Terkirim", "warn"], hadir: ["Hadir", "good"], tidak: ["Tidak hadir", "bad"] };
 
-const S = { meta: { lamaran: "", wedding: "", target: 0 }, tasks: [], budget: [], guests: [], refs: [], votes: [], loaded: {} };
-let db = null, userApi = null, assetsApi = null, canWrite = true, me = null, state = "loading";
+const S = { meta: { lamaran: "", wedding: "", target: 0 }, tasks: [], budget: [], guests: [], refs: [], votes: [], vendors: [], seserahan: [], rundown: [], journal: [], loaded: {} };
+let dlApi = null, db = null, userApi = null, assetsApi = null, canWrite = true, me = null, state = "loading";
 let tab = (location.hash || "").slice(1);
 if (!TABS.some(t => t[0] === tab)) tab = "ringkasan";
 let refCat = "Semua", refStatus = "semua", pendingRender = false;
@@ -252,6 +263,7 @@ async function init() {
   state = "ready";
   try { userApi = await claude.use("user"); } catch (e) {}
   try { assetsApi = await claude.use("assets"); } catch (e) {}
+  try { dlApi = await claude.use("downloads"); } catch (e) {}
   if (userApi) {
     try { me = await userApi.id(); } catch (e) {}
     try { if ((await userApi.can("data.write")) === false) canWrite = false; } catch (e) {}
@@ -259,6 +271,7 @@ async function init() {
   updateNotice();
   subscribeMeta();
   subscribe("tasks", "tasks"); subscribe("budget", "budget"); subscribe("guests", "guests"); subscribe("refs", "refs"); subscribe("votes", "votes");
+  subscribe("vendors", "vendors"); subscribe("seserahan", "seserahan"); subscribe("rundown", "rundown"); subscribe("journal", "journal");
 }
 
 /* ---------- tampilan ---------- */
@@ -274,7 +287,7 @@ function renderTabs() {
 function view() {
   pendingRender = false;
   renderCountdown(); renderTabs();
-  $("view").innerHTML = ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, tamu: vTamu, referensi: vReferensi })[tab]();
+  $("view").innerHTML = ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, tamu: vTamu, referensi: vReferensi, vendor: vVendor, seserahan: vSeserahan, harih: vHariH, jurnal: vJurnal })[tab]();
   resolveNames();
 }
 const dis = () => canWrite && db ? "" : "disabled";
@@ -312,6 +325,7 @@ function vRingkasan() {
         <div class="meta ${d < today() ? "late" : ""}">${d < today() ? "Lewat tenggat · " : ""}${fmtDate(d)}</div></div></div>`).join("")
         : `<p class="empty">Isi tanggal lamaran atau nikah untuk melihat tugas terdekat.</p>`}
     </div>
+    ${exportCard()}
   </div>`;
 }
 
@@ -329,6 +343,8 @@ function hero() {
   if (w !== null && w >= 0) chips.push(l !== null && l >= 0 ? "Menuju lamaran · " + l + " hari" : "Menuju hari-H");
   if (late) chips.push(late + " tugas terlambat");
   if (soon) chips.push(soon + " tugas minggu ini");
+  const pay = payDues().filter(x => x.d && x.d - t <= 7 * 864e5).length;
+  if (pay) chips.push(pay + " pembayaran ≤ 7 hari");
   let track = "";
   if (S.meta.wedding && w >= 0) {
     const W = new Date(S.meta.wedding + "T00:00:00"), L = S.meta.lamaran ? new Date(S.meta.lamaran + "T00:00:00") : null;
@@ -478,6 +494,128 @@ function vReferensi() {
   </div>`;
 }
 
+/* ---------- vendor, seserahan, hari-H, jurnal, ekspor ---------- */
+const val = el => el.type === "checkbox" ? el.checked : el.type === "number" ? (+el.value || 0) : el.value;
+const atDay = iso => new Date(iso + "T00:00:00");
+function payDues() {
+  const out = [];
+  S.vendors.forEach(v => [["dp", "DP"], ["final", "Pelunasan"]].forEach(([k, l]) => {
+    const amt = +v[k] || 0, ds = v[k + "Date"];
+    if (amt > 0 && !v[k + "Paid"]) out.push({ v, l, amt, d: ds ? atDay(ds) : null });
+  }));
+  return out.sort((a, b) => (a.d ? +a.d : 9e15) - (b.d ? +b.d : 9e15));
+}
+function payRow(v, k, label) {
+  return `<div class="pay"><input type="checkbox" data-v="${v.id}" data-f="${k}Paid" ${v[k + "Paid"] ? "checked" : ""} ${dis()} aria-label="${label} ${esc(v.name)} sudah dibayar">
+    <span class="plabel">${label}</span>
+    <input type="number" min="0" class="num" data-v="${v.id}" data-f="${k}" value="${v[k] || ""}" placeholder="Rp" ${dis()} aria-label="Jumlah ${label} ${esc(v.name)}">
+    <input type="date" data-v="${v.id}" data-f="${k}Date" value="${esc(v[k + "Date"] || "")}" ${dis()} aria-label="Tanggal ${label} ${esc(v.name)}"></div>`;
+}
+function vVendor() {
+  if (state === "ready" && !S.loaded.vendors) return loading();
+  const vs = [...S.vendors].sort(byOrd), t = today(), dues = payDues();
+  const total = vs.reduce((a, v) => a + (+v.total || 0), 0);
+  const paid = vs.reduce((a, v) => a + (v.dpPaid ? +v.dp || 0 : 0) + (v.finalPaid ? +v.final || 0 : 0), 0);
+  const dueHtml = dues.length ? dues.map(x => {
+    const late = x.d && x.d < t, days = x.d ? Math.round((x.d - t) / 864e5) : null;
+    return `<div class="task"><div class="body"><div class="t">${esc(x.v.name)} · ${x.l}</div><div class="meta ${late ? "late" : ""}">${x.d ? (late ? "Lewat jatuh tempo · " : "Jatuh tempo ") + fmtDate(x.d) + (days >= 0 ? " (" + days + " hari lagi)" : "") : "Tanggal belum diisi"}</div></div><b class="price">${rp(x.amt)}</b></div>`;
+  }).join("") : `<p class="empty">Tidak ada tagihan yang menunggu.</p>`;
+  const cards = vs.map(v => {
+    const vp = (v.dpPaid ? +v.dp || 0 : 0) + (v.finalPaid ? +v.final || 0 : 0);
+    return `<div class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2>${esc(v.name)} <span class="pill">${esc(v.cat)}</span></h2>
+      <button class="x" data-del="vendors/${v.id}" ${dis()} aria-label="Hapus vendor">×</button></div>
+      <div class="row"><label>Total kontrak (Rp)<input type="number" min="0" data-v="${v.id}" data-f="total" value="${v.total || ""}" ${dis()}></label>
+      <label>Kontak<input data-v="${v.id}" data-f="contact" value="${esc(v.contact || "")}" placeholder="nama / nomor WA" ${dis()}></label></div>
+      ${payRow(v, "dp", "DP")}${payRow(v, "final", "Pelunasan")}
+      <p class="sub">Terbayar ${rp(vp)}${v.total ? " · sisa " + rp((+v.total || 0) - vp) : ""}</p></div>`;
+  }).join("");
+  return `<div class="stack">
+    <div class="card"><div class="count"><div><b style="font-size:20px">${rp(total)}</b><span>total kontrak</span></div>
+      <div><b style="font-size:20px">${rp(paid)}</b><span>sudah dibayar · sisa ${rp(total - paid)}</span></div></div></div>
+    <div class="card"><h2>Jatuh tempo</h2>${dueHtml}</div>
+    ${cards}
+    <form class="card" id="addvendor"><h2>Tambah vendor</h2><div class="row">
+      <label style="flex-basis:100%">Nama vendor<input id="vn" required placeholder="mis. Rias Ayu" ${dis()}></label>
+      <label>Jenis<select id="vc" ${dis()}>${REF_CATS.map(c => `<option>${esc(c)}</option>`).join("")}</select></label>
+      <label>Total kontrak (Rp)<input id="vt" type="number" min="0" ${dis()}></label>
+      <button class="btn" ${dis()}>Tambah</button></div></form>
+  </div>`;
+}
+function vSeserahan() {
+  if (state === "ready" && !S.loaded.seserahan) return loading();
+  const it = [...S.seserahan].sort(byOrd);
+  const n = s => it.filter(x => x.status === s).length;
+  const sum = it.reduce((a, x) => a + (+x.price || 0), 0);
+  const rows = it.map(x => `<div class="task g"><div class="body"><div class="t">${esc(x.name)} <span class="pill">${esc(x.kind)}</span></div></div>
+    <input class="num" type="number" min="0" data-s="${x.id}" data-f="price" value="${x.price || ""}" placeholder="Harga (Rp)" ${dis()} aria-label="Harga ${esc(x.name)}" style="width:150px">
+    <select data-s="${x.id}" data-f="status" ${dis()} aria-label="Status ${esc(x.name)}" style="width:auto">${Object.entries(SES_STATUS).map(([k, l]) => `<option value="${k}" ${x.status === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+    <button class="x" data-del="seserahan/${x.id}" ${dis()} aria-label="Hapus">×</button></div>`).join("");
+  return `<div class="stack">
+    <div class="card"><div class="count"><div><b>${it.length}</b><span>barang · ${n("dibeli")} dibeli · ${n("dihias")} dihias</span></div>
+      <div><b style="font-size:20px">${rp(sum)}</b><span>total harga</span></div></div></div>
+    <div class="card"><h2>Seserahan dan mahar</h2>${rows || `<p class="empty">Belum ada barang. Mulai dari mahar, perlengkapan ibadah, atau busana.</p>`}</div>
+    <form class="card" id="addses"><h2>Tambah barang</h2><div class="row">
+      <label style="flex-basis:100%">Nama barang<input id="sn" required placeholder="mis. Set perhiasan, mukena, tas" ${dis()}></label>
+      <label>Jenis<select id="sk" ${dis()}><option>Seserahan</option><option>Mahar</option></select></label>
+      <label>Harga (Rp)<input id="sp" type="number" min="0" ${dis()}></label>
+      <button class="btn" ${dis()}>Tambah</button></div></form>
+  </div>`;
+}
+function vHariH() {
+  if (state === "ready" && !S.loaded.rundown) return loading();
+  const groups = RUN_DAYS.map(d => {
+    const items = S.rundown.filter(r => (r.day || "Hari-H") === d).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+    return `<div class="card"><h2>${d} ${S.meta[d === "Lamaran" ? "lamaran" : "wedding"] ? `<span class="meta">${fmtDate(atDay(S.meta[d === "Lamaran" ? "lamaran" : "wedding"]))}</span>` : ""}</h2>
+      ${items.length ? items.map(r => `<div class="task"><span class="time">${esc(r.time || "--:--")}</span><div class="body"><div class="t">${esc(r.title)}</div>
+        <div class="meta">${r.pic ? "PIC: " + esc(r.pic) : ""}${r.pic && r.note ? " · " : ""}${esc(r.note || "")}</div></div>
+        <button class="x" data-del="rundown/${r.id}" ${dis()} aria-label="Hapus">×</button></div>`).join("") : `<p class="empty">Belum ada jadwal ${d}.</p>`}</div>`;
+  }).join("");
+  return `<div class="stack">${groups}
+    <form class="card" id="addrun"><h2>Tambah acara</h2><div class="row">
+      <label>Hari<select id="rd" ${dis()}>${RUN_DAYS.map(d => `<option>${d}</option>`).join("")}</select></label>
+      <label>Jam<input id="rtm" type="time" required ${dis()}></label>
+      <label style="flex-basis:100%">Acara<input id="rti" required placeholder="mis. Akad nikah" ${dis()}></label>
+      <label>Penanggung jawab<input id="rpic" placeholder="mis. WO, MC, Kak Rina" ${dis()}></label>
+      <label>Catatan<input id="rnt" placeholder="opsional" ${dis()}></label>
+      <button class="btn" ${dis()}>Tambah</button></div></form>
+  </div>`;
+}
+function vJurnal() {
+  if (state === "ready" && !S.loaded.journal) return loading();
+  const items = [...S.journal].sort((a, b) => (b.ord || 0) - (a.ord || 0));
+  const open = items.filter(j => j.kind === "bahas" && !j.resolved).length;
+  const feed = items.map(j => {
+    const k = J_KINDS[j.kind] || J_KINDS.catatan, done = j.kind === "bahas" && j.resolved;
+    return `<div class="card entry ${done ? "done" : ""}"><div class="row" style="justify-content:space-between;align-items:center">
+      <span><span class="pill ${k[1]}">${k[0]}</span> <span class="meta">${new Date(j.ord).toLocaleDateString("id-ID", { day: "numeric", month: "short" })} · <span data-by="${esc(j.by || "")}"></span></span></span>
+      <button class="x" data-del="journal/${j.id}" ${dis()} aria-label="Hapus catatan">×</button></div>
+      <p>${esc(j.text)}</p>
+      ${j.kind === "bahas" ? `<label style="flex:none;display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:13px"><input type="checkbox" data-jr="${j.id}" ${j.resolved ? "checked" : ""} ${dis()}> Sudah dibahas</label>` : ""}</div>`;
+  }).join("");
+  return `<div class="stack">
+    <form class="card" id="addjournal"><h2>Jurnal berdua</h2>
+      <p class="sub">Tulis keputusan yang sudah disepakati, catatan diskusi, atau hal yang perlu dibahas lagi.${open ? " Ada " + open + " hal yang masih perlu dibahas." : ""}</p>
+      <div class="row"><label style="flex-basis:100%">Isi<textarea id="jt" required placeholder="mis. Sepakat pakai adat Jawa untuk akad, resepsi modern" ${dis()}></textarea></label>
+      <label>Jenis<select id="jk" ${dis()}>${Object.entries(J_KINDS).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join("")}</select></label>
+      <button class="btn" ${dis()}>Simpan</button></div></form>
+    ${feed || `<div class="card"><p class="empty">Belum ada catatan.</p></div>`}
+  </div>`;
+}
+const csv = rows => "﻿" + rows.map(r => r.map(c => { c = String(c == null ? "" : c); return /[",\n;]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(",")).join("\r\n");
+const EXPORTS = {
+  checklist: ["Checklist", "checklist-nikah.csv", () => [["Tugas", "Kategori", "Tenggat", "Selesai"], ...S.tasks.map(t => [t.t, t.cat, dueDate(t) ? fmtDate(dueDate(t)) : "", t.done ? "Ya" : "Belum"])]],
+  budget: ["Budget", "budget-nikah.csv", () => [["Pos", "Estimasi", "Aktual", "Dibayar", "Ditanggung"], ...[...S.budget].sort(byOrd).map(b => [b.name, b.est || 0, b.act || 0, b.paid || 0, PAYERS[b.payer || "bersama"]])]],
+  vendor: ["Vendor", "vendor-nikah.csv", () => [["Vendor", "Jenis", "Kontak", "Total", "DP", "Tanggal DP", "DP lunas", "Pelunasan", "Tanggal pelunasan", "Pelunasan lunas"], ...[...S.vendors].sort(byOrd).map(v => [v.name, v.cat, v.contact || "", v.total || 0, v.dp || 0, v.dpDate || "", v.dpPaid ? "Ya" : "Belum", v.final || 0, v.finalDate || "", v.finalPaid ? "Ya" : "Belum"])]],
+  tamu: ["Tamu", "daftar-tamu.csv", () => [["Nama", "Jumlah orang", "Pihak", "Status", "Amplop"], ...[...S.guests].sort(byOrd).map(g => [g.name, g.n, SIDES[g.side] || "", (STAT[g.status] || [""])[0], g.amplop || 0])]],
+  seserahan: ["Seserahan", "seserahan-mahar.csv", () => [["Barang", "Jenis", "Harga", "Status"], ...[...S.seserahan].sort(byOrd).map(x => [x.name, x.kind, x.price || 0, SES_STATUS[x.status] || ""])]],
+  rundown: ["Rundown", "rundown-acara.csv", () => [["Hari", "Jam", "Acara", "PIC", "Catatan"], ...[...S.rundown].sort((a, b) => (a.day || "Hari-H").localeCompare(b.day || "Hari-H") || (a.time || "").localeCompare(b.time || "")).map(r => [r.day || "Hari-H", r.time || "", r.title, r.pic || "", r.note || ""])]]
+};
+function exportCard() {
+  if (!dlApi) return "";
+  return `<div class="card"><h2>Ekspor ke file</h2><p class="sub">Simpan sebagai CSV untuk dibuka di Excel atau Google Sheets, atau dikirim ke keluarga.</p>
+    <div class="exports">${Object.entries(EXPORTS).map(([k, v]) => `<button class="btn ghost" data-export="${k}">${v[0]}</button>`).join("")}</div></div>`;
+}
+
 async function resolveNames() {
   const els = [...document.querySelectorAll("[data-by]")];
   const ids = [...new Set(els.map(e => e.dataset.by).filter(Boolean))];
@@ -498,8 +636,13 @@ async function shrink(file) {
 
 /* ---------- aksi ---------- */
 document.addEventListener("click", async e => {
-  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],[data-like],#addb,#tpl,#tplb");
+  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],[data-like],[data-export],#addb,#tpl,#tplb");
   if (!el) return;
+  if (el.dataset.export) {
+    const ex = EXPORTS[el.dataset.export];
+    try { await dlApi.save({ filename: ex[1], data: csv(ex[2]()) }); } catch (x) { if (!x || x.code !== "declined") flash("File tidak bisa disimpan di tampilan ini."); }
+    return;
+  }
   if (el.dataset.tab) { tab = el.dataset.tab; try { history.replaceState(null, "", "#" + tab); } catch (x) {} view(); }
   else if (el.dataset.like) {
     if (!me) return;
@@ -542,6 +685,9 @@ document.addEventListener("change", e => {
   else if (el.dataset.ga) write(() => db.doc("guests/" + el.dataset.ga).update({ amplop: +el.value || 0 }));
   else if (el.dataset.gs) write(() => db.doc("guests/" + el.dataset.gs).update({ status: el.value }));
   else if (el.dataset.rs) write(() => db.doc("refs/" + el.dataset.rs).update({ status: el.value }));
+  else if (el.dataset.v) write(() => db.doc("vendors/" + el.dataset.v).update({ [el.dataset.f]: val(el) }));
+  else if (el.dataset.s) write(() => db.doc("seserahan/" + el.dataset.s).update({ [el.dataset.f]: val(el) }));
+  else if (el.dataset.jr) write(() => db.doc("journal/" + el.dataset.jr).update({ resolved: el.checked }));
 });
 document.addEventListener("submit", async e => {
   e.preventDefault();
@@ -552,6 +698,18 @@ document.addEventListener("submit", async e => {
   } else if (id === "addguest") {
     const f = { name: $("gn").value.trim(), n: Math.max(1, +$("gc").value || 1), side: $("gside").value, status: "belum", ord: Date.now() };
     e.target.reset(); write(() => col("guests").doc(uid()).set(f));
+  } else if (id === "addvendor") {
+    const f = { name: $("vn").value.trim(), cat: $("vc").value, total: +$("vt").value || 0, ord: Date.now() };
+    e.target.reset(); write(() => col("vendors").doc(uid()).set(f));
+  } else if (id === "addses") {
+    const f = { name: $("sn").value.trim(), kind: $("sk").value, price: +$("sp").value || 0, status: "belum", ord: Date.now() };
+    e.target.reset(); write(() => col("seserahan").doc(uid()).set(f));
+  } else if (id === "addrun") {
+    const f = { day: $("rd").value, time: $("rtm").value, title: $("rti").value.trim(), pic: $("rpic").value.trim(), note: $("rnt").value.trim(), ord: Date.now() };
+    e.target.reset(); write(() => col("rundown").doc(uid()).set(f));
+  } else if (id === "addjournal") {
+    const f = { text: $("jt").value.trim(), kind: $("jk").value, by: me || "", resolved: false, ord: Date.now() };
+    e.target.reset(); write(() => col("journal").doc(uid()).set(f));
   } else if (id === "addref") {
     const btn = $("rsub"); btn.disabled = true; btn.textContent = "Menyimpan…";
     const f = { title: $("rt").value.trim(), cat: $("rcat").value, status: $("rst").value, url: cleanUrl($("ru").value),
