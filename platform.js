@@ -14,7 +14,7 @@
   }
 
   // Firebase mewajibkan format email, jadi nama pengguna tanpa "@" diberi domain tetap ini.
-  const toEmail = v => { v = v.trim().toLowerCase(); return v.includes("@") ? v : v + "@rencana.nikah"; };
+  const toEmail = v => { v = v.trim().toLowerCase(); return v.includes("@") ? v : v + "@wedding.planner"; };
 
   function showSetup() {
     box('<h1>Rencana Nikah</h1><div class="card"><h2>Belum terhubung</h2><p class="sub">Aplikasi belum tersambung ke Firebase. Isi <b>firebase-config.js</b> mengikuti langkah di <b>SETUP.md</b>, lalu muat ulang halaman ini.</p></div>');

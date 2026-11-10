@@ -14,7 +14,7 @@ Kamu butuh akun Google (untuk Firebase), akun Vercel, dan repo GitHub ini. Semua
 ## 3. Aktifkan login dan buat dua akun
 1. Menu **Build > Authentication > Get started**.
 2. Tab **Sign-in method**, aktifkan **Email/Password**.
-3. Tab **Users > Add user**, buat dua akun. Di kolom email, isi nama pengguna lalu `@rencana.nikah`, misalnya `rafi@rencana.nikah` dan `alya@rencana.nikah`. Kata sandi minimal 6 karakter. Di layar masuk aplikasi, cukup ketik `rafi` atau `alya` (tanpa @).
+3. Tab **Users > Add user**, buat dua akun. Di kolom email, isi nama pengguna lalu `@wedding.planner`, misalnya `nama@wedding.planner` dan `nama2@wedding.planner`. Kata sandi minimal 6 karakter. Di layar masuk aplikasi, cukup ketik `rafi` atau `alya` (tanpa @).
 4. Kalau ada pengaturan **User actions** di tab Settings, matikan pendaftaran sendiri (sign-up) supaya tidak ada akun baru.
 
 ## 4. Ambil konfigurasi web
@@ -24,7 +24,7 @@ Kamu butuh akun Google (untuk Firebase), akun Vercel, dan repo GitHub ini. Semua
 
 ## 5. Pasang aturan keamanan
 1. Di **Firestore Database > Rules**, tempel isi file `firestore.rules`.
-2. Ganti dua email di dalamnya dengan akun yang kamu buat di langkah 3 (misalnya `rafi@rencana.nikah`), lalu **Publish**.
+2. Ganti dua email di dalamnya dengan akun yang kamu buat di langkah 3 (misalnya `nama@wedding.planner`), lalu **Publish**.
 
 Tanpa langkah ini data tidak terlindungi dengan benar, jadi jangan dilewati.
 
