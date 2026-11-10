@@ -137,6 +137,12 @@ details summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 .entry p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .entry.done p { text-decoration: line-through; color: var(--muted); }
 .exports { display: flex; gap: 8px; flex-wrap: wrap; }
+.trow { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.trow:first-of-type { border-top: 0; }
+.th { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.th input { width: 210px; max-width: 100%; }
+.amt-in { color: var(--good); font-weight: 600; font-variant-numeric: tabular-nums; }
+.amt-out { color: var(--bad); font-weight: 600; font-variant-numeric: tabular-nums; }
 a.btn { text-decoration: none; display: inline-block; }
 @media (prefers-reduced-motion: no-preference) { .bar i { transition: width .3s; } }
 
@@ -172,7 +178,7 @@ img { max-width: 100%; }
 <script src="firebase-config.js"></script>
 <script src="platform.js"></script>
 <script>
-const TABS = [["ringkasan","Ringkasan"],["checklist","Checklist"],["budget","Budget"],["vendor","Vendor"],["tamu","Tamu"],["referensi","Referensi"],["seserahan","Seserahan"],["harih","Hari-H"],["jurnal","Jurnal"]];
+const TABS = [["ringkasan","Ringkasan"],["checklist","Checklist"],["budget","Budget"],["keuangan","Keuangan"],["vendor","Vendor"],["tamu","Tamu"],["referensi","Referensi"],["seserahan","Seserahan"],["harih","Hari-H"],["jurnal","Jurnal"]];
 const SES_STATUS = { belum: "Belum dibeli", dibeli: "Sudah dibeli", dihias: "Sudah dihias" };
 const RUN_DAYS = ["Lamaran", "Hari-H"];
 const J_KINDS = { keputusan: ["Keputusan", "good"], catatan: ["Catatan", ""], bahas: ["Perlu dibahas", "warn"] };
@@ -219,10 +225,11 @@ const BUDGET_TEMPLATE = ["Venue & katering","Dekorasi","MUA & busana","Foto & vi
 const REF_CATS = ["Dekorasi","Busana","MUA","Wedding Organizer","Venue","Katering","Foto & video","Seserahan","Undangan","Lainnya"];
 const REF_STATUS = { ide: ["Ide", ""], kandidat: ["Kandidat", "warn"], dipilih: ["Dipilih", "good"], ditolak: ["Ditolak", "bad"] };
 const SIDES = { pria: "Keluarga pria", wanita: "Keluarga wanita", teman: "Teman", kolega: "Kolega" };
-const PAYERS = { bersama: "Berdua", pria: "Pihak pria", wanita: "Pihak wanita", ortupria: "Ortu pria", ortuwanita: "Ortu wanita" };
+const PAYERS = { bersama: "Berdua", pria: "CPP (pria)", wanita: "CPW (wanita)", ortupria: "Ortu CPP", ortuwanita: "Ortu CPW" };
+const MASUK_PIHAK = { ...PAYERS, lain: "Lainnya" };
 const STAT = { belum: ["Belum dikirim", ""], terkirim: ["Terkirim", "warn"], hadir: ["Hadir", "good"], tidak: ["Tidak hadir", "bad"] };
 
-const S = { meta: { lamaran: "", wedding: "", target: 0 }, tasks: [], budget: [], guests: [], refs: [], votes: [], vendors: [], seserahan: [], rundown: [], journal: [], loaded: {} };
+const S = { meta: { lamaran: "", wedding: "", target: 0 }, tasks: [], budget: [], guests: [], refs: [], votes: [], vendors: [], seserahan: [], rundown: [], journal: [], ledger: [], loaded: {} };
 let dlApi = null, db = null, userApi = null, assetsApi = null, canWrite = true, me = null, state = "loading";
 let tab = (location.hash || "").slice(1);
 if (!TABS.some(t => t[0] === tab)) tab = "ringkasan";
@@ -310,7 +317,7 @@ async function init() {
   updateNotice();
   subscribeMeta();
   subscribe("tasks", "tasks"); subscribe("budget", "budget"); subscribe("guests", "guests"); subscribe("refs", "refs"); subscribe("votes", "votes");
-  subscribe("vendors", "vendors"); subscribe("seserahan", "seserahan"); subscribe("rundown", "rundown"); subscribe("journal", "journal");
+  subscribe("vendors", "vendors"); subscribe("seserahan", "seserahan"); subscribe("rundown", "rundown"); subscribe("journal", "journal"); subscribe("ledger", "ledger");
 }
 
 /* ---------- tampilan ---------- */
@@ -327,7 +334,7 @@ function renderTabs() {
 function view() {
   pendingRender = false;
   renderCountdown(); renderTabs();
-  $("view").innerHTML = ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, tamu: vTamu, referensi: vReferensi, vendor: vVendor, seserahan: vSeserahan, harih: vHariH, jurnal: vJurnal })[tab]();
+  $("view").innerHTML = ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, keuangan: vKeuangan, tamu: vTamu, referensi: vReferensi, vendor: vVendor, seserahan: vSeserahan, harih: vHariH, jurnal: vJurnal })[tab]();
   resolveNames();
 }
 const dis = () => canWrite && db ? "" : "disabled";
@@ -337,7 +344,7 @@ function vRingkasan() {
   const done = S.tasks.filter(t => t.done).length, total = S.tasks.length;
   const pct = total ? Math.round(done / total * 100) : 0;
   const act = S.budget.reduce((a, b) => a + (+b.act || 0), 0);
-  const paid = S.budget.reduce((a, b) => a + (+b.paid || 0), 0);
+  const paid = S.budget.reduce((a, b) => a + paidOf(b), 0);
   const hadir = S.guests.filter(g => g.status === "hadir").reduce((a, g) => a + (+g.n || 0), 0);
   const next = S.tasks.filter(t => !t.done).map(t => ({ t, d: dueDate(t) })).filter(x => x.d).sort((a, b) => a.d - b.d).slice(0, 5);
   return `<div class="stack">
@@ -350,6 +357,7 @@ function vRingkasan() {
         <div><b>${done}/${total}</b><span>tugas selesai</span></div>
         <div><b>${S.guests.length}</b><span>undangan · ${hadir} orang konfirmasi hadir${(S.meta.profile || {}).tamu ? " · target " + S.meta.profile.tamu : ""}</span></div>
         <div><b style="font-size:20px">${rp(paid)}</b><span>sudah dibayar dari ${rp(act)}</span></div>
+        <div><b style="font-size:20px">${rp(kas().saldo)}</b><span>saldo kas${kas().biaya ? (kas().selisih >= 0 ? " · dana cukup" : " · dana kurang " + rp(-kas().selisih)) : ""}</span></div>
       </div>
     </div>
     <div class="card">
@@ -442,7 +450,7 @@ function vBudget() {
   const items = [...S.budget].sort(byOrd);
   const est = items.reduce((a, b) => a + (+b.est || 0), 0);
   const act = items.reduce((a, b) => a + (+b.act || 0), 0);
-  const paid = items.reduce((a, b) => a + (+b.paid || 0), 0);
+  const paid = items.reduce((a, b) => a + paidOf(b), 0);
   const over = S.meta.target && act > S.meta.target;
   const split = Object.entries(PAYERS).map(([k, n]) => [n, items.filter(b => (b.payer || "bersama") === k).reduce((a, b) => a + (+b.act || 0), 0)]).filter(x => x[1] > 0);
   return `<div class="stack">
@@ -462,11 +470,12 @@ function vBudget() {
         <td><input data-b="${b.id}" data-f="name" value="${esc(b.name)}" ${dis()} aria-label="Nama pos"></td>
         <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="est" value="${b.est || ""}" ${dis()} aria-label="Estimasi"></td>
         <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="act" value="${b.act || ""}" ${dis()} aria-label="Aktual"></td>
-        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="paid" value="${b.paid || ""}" ${dis()} aria-label="Dibayar"></td>
+        <td class="num" style="padding:4px 8px">${rp(paidOf(b))}</td>
         <td><select data-b="${b.id}" data-f="payer" ${dis()} aria-label="Ditanggung oleh">${Object.entries(PAYERS).map(([k, n]) => `<option value="${k}" ${(b.payer || "bersama") === k ? "selected" : ""}>${n}</option>`).join("")}</select></td>
         <td><button class="x" data-del="budget/${b.id}" ${dis()} aria-label="Hapus pos">×</button></td></tr>`).join("")}</tbody>
       </table></div>` : `<div class="empty"><span>Belum ada pos budget.</span><button class="btn" id="tplb" ${dis()}>Pakai 9 pos standar</button></div>`}
       <div><button class="btn ghost" id="addb" ${dis()}>Tambah pos</button></div>
+      <p class="sub">Kolom Dibayar terisi otomatis dari catatan uang keluar di tab Keuangan.</p>
     </div>
   </div>`;
 }
@@ -562,6 +571,59 @@ function payRow(v, k, label) {
     <input type="number" min="0" class="num" data-v="${v.id}" data-f="${k}" value="${v[k] || ""}" placeholder="Rp" ${dis()} aria-label="Jumlah ${label} ${esc(v.name)}">
     <input type="date" data-v="${v.id}" data-f="${k}Date" value="${esc(v[k + "Date"] || "")}" ${dis()} aria-label="Tanggal ${label} ${esc(v.name)}"></div>`;
 }
+const isoToday = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+const paidOf = b => S.ledger.filter(l => l.type === "keluar" && l.budgetId === b.id).reduce((a, l) => a + (+l.amount || 0), 0);
+const costOf = b => (+b.act) || (+b.est) || 0;
+function kas() {
+  const sum = (type, pred) => S.ledger.filter(l => l.type === type && (!pred || pred(l))).reduce((a, l) => a + (+l.amount || 0), 0);
+  const amplop = S.guests.reduce((a, g) => a + (+g.amplop || 0), 0);
+  const masuk = sum("masuk") + amplop, keluar = sum("keluar"), biaya = S.budget.reduce((a, b) => a + costOf(b), 0);
+  const saldo = masuk - keluar, sisa = Math.max(0, biaya - keluar);
+  return { masuk, keluar, amplop, biaya, saldo, sisa, selisih: saldo - sisa };
+}
+function vKeuangan() {
+  if (state === "ready" && !(S.loaded.ledger && S.loaded.budget && S.loaded.meta && S.loaded.guests)) return loading();
+  const k = kas(), tg = S.meta.targets || {}, items = [...S.budget].sort(byOrd);
+  const rows = Object.entries(PAYERS).map(([key, name]) => {
+    const got = S.ledger.filter(l => l.type === "masuk" && l.party === key).reduce((a, l) => a + (+l.amount || 0), 0);
+    const sug = items.filter(b => (b.payer || "bersama") === key).reduce((a, b) => a + costOf(b), 0);
+    const target = +tg[key] > 0 ? +tg[key] : sug, pct = target ? Math.min(100, Math.round(got / target * 100)) : 0, diff = target - got;
+    return `<div class="trow"><div class="th"><b>${name}</b><input class="num" type="number" min="0" data-tg="${key}" value="${tg[key] || ""}" placeholder="${sug ? "Saran " + rp(sug) : "Target (Rp)"}" ${dis()} aria-label="Target setoran ${name}"></div>
+      <div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
+      <div class="meta">Terkumpul ${rp(got)}${target ? " dari " + rp(target) + " · " + (diff > 0 ? "kurang " + rp(diff) : "lebih " + rp(-diff)) : " · target belum diisi"}</div></div>`;
+  }).join("");
+  const hist = [...S.ledger].sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.ord || 0) - (a.ord || 0)).map(l => {
+    const inn = l.type === "masuk", label = inn ? (MASUK_PIHAK[l.party] || "") : ((items.find(b => b.id === l.budgetId) || {}).name || "Tanpa pos");
+    return `<div class="task"><div class="body"><div class="t">${esc(label)} <span class="pill ${inn ? "good" : "bad"}">${inn ? "Masuk" : "Keluar"}</span></div>
+      <div class="meta">${l.date ? fmtDate(atDay(l.date)) : ""}${l.note ? " · " + esc(l.note) : ""} · <span data-by="${esc(l.by || "")}"></span></div></div>
+      <b class="${inn ? "amt-in" : "amt-out"}">${inn ? "+" : "-"}${rp(l.amount)}</b>
+      <button class="x" data-del="ledger/${l.id}" ${dis()} aria-label="Hapus catatan">×</button></div>`;
+  }).join("");
+  const status = !k.biaya ? "Isi biaya di tab Budget untuk melihat apakah dana cukup." : k.selisih >= 0 ? "Dana cukup untuk sisa tagihan, lebih " + rp(k.selisih) + "." : "Dana kurang " + rp(-k.selisih) + " untuk sisa tagihan.";
+  return `<div class="stack">
+    <div class="card"><div class="count">
+      <div><b style="font-size:20px">${rp(k.masuk)}</b><span>uang masuk${k.amplop ? " · termasuk amplop tamu " + rp(k.amplop) : ""}</span></div>
+      <div><b style="font-size:20px">${rp(k.keluar)}</b><span>uang keluar</span></div>
+      <div><b style="font-size:20px" class="${k.saldo < 0 ? "over" : ""}">${rp(k.saldo)}</b><span>saldo kas</span></div></div>
+      <p class="sub">Sisa tagihan ${rp(k.sisa)} dari total biaya ${rp(k.biaya)}. ${status}</p></div>
+    <div class="card"><h2>Setoran per pihak</h2>${rows}
+      <p class="sub">Kolom target kosong memakai saran dari biaya di tab Budget yang ditandai ditanggung pihak itu. Isi angka untuk mengganti.</p></div>
+    <form class="card" id="addmasuk"><h2>Catat uang masuk</h2><div class="row">
+      <label>Tanggal<input id="mtgl" type="date" value="${isoToday()}" required ${dis()}></label>
+      <label>Jumlah (Rp)<input id="mjml" type="number" min="1" required ${dis()}></label>
+      <label>Dari pihak<select id="mpihak" ${dis()}>${Object.entries(MASUK_PIHAK).map(([key, n]) => `<option value="${key}">${n}</option>`).join("")}</select></label>
+      <label>Catatan<input id="mcat" placeholder="opsional" ${dis()}></label>
+      <button class="btn" ${dis()}>Simpan</button></div></form>
+    <form class="card" id="addkeluar"><h2>Catat uang keluar</h2><div class="row">
+      <label>Tanggal<input id="ktgl" type="date" value="${isoToday()}" required ${dis()}></label>
+      <label>Jumlah (Rp)<input id="kjml" type="number" min="1" required ${dis()}></label>
+      <label>Untuk pos budget<select id="kpos" ${dis()}><option value="">Tanpa pos</option>${items.map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join("")}</select></label>
+      <label>Catatan<input id="kcat" placeholder="mis. DP katering" ${dis()}></label>
+      <button class="btn" ${dis()}>Simpan</button></div></form>
+    <div class="card"><h2>Riwayat</h2>${hist || `<p class="empty">Belum ada catatan uang masuk atau keluar.</p>`}</div>
+  </div>`;
+}
+
 function vVendor() {
   if (state === "ready" && !S.loaded.vendors) return loading();
   const vs = [...S.vendors].sort(byOrd), t = today(), dues = payDues();
@@ -655,7 +717,8 @@ function vJurnal() {
 const csv = rows => "﻿" + rows.map(r => r.map(c => { c = String(c == null ? "" : c); return /[",\n;]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(",")).join("\r\n");
 const EXPORTS = {
   checklist: ["Checklist", "checklist-nikah.csv", () => [["Tugas", "Kategori", "Tenggat", "Selesai"], ...S.tasks.map(t => [t.t, t.cat, dueDate(t) ? fmtDate(dueDate(t)) : "", t.done ? "Ya" : "Belum"])]],
-  budget: ["Budget", "budget-nikah.csv", () => [["Pos", "Estimasi", "Aktual", "Dibayar", "Ditanggung"], ...[...S.budget].sort(byOrd).map(b => [b.name, b.est || 0, b.act || 0, b.paid || 0, PAYERS[b.payer || "bersama"]])]],
+  budget: ["Budget", "budget-nikah.csv", () => [["Pos", "Estimasi", "Aktual", "Dibayar", "Ditanggung"], ...[...S.budget].sort(byOrd).map(b => [b.name, b.est || 0, b.act || 0, paidOf(b), PAYERS[b.payer || "bersama"]])]],
+  keuangan: ["Keuangan", "keuangan-nikah.csv", () => [["Tanggal", "Jenis", "Pihak atau pos", "Jumlah", "Catatan"], ...[...S.ledger].sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.ord || 0) - (b.ord || 0)).map(l => [l.date ? fmtDate(atDay(l.date)) : "", l.type === "masuk" ? "Masuk" : "Keluar", l.type === "masuk" ? (MASUK_PIHAK[l.party] || "") : ((S.budget.find(b => b.id === l.budgetId) || {}).name || "Tanpa pos"), l.amount || 0, l.note || ""])]],
   vendor: ["Vendor", "vendor-nikah.csv", () => [["Vendor", "Jenis", "Kontak", "Total", "DP", "Tanggal DP", "DP lunas", "Pelunasan", "Tanggal pelunasan", "Pelunasan lunas"], ...[...S.vendors].sort(byOrd).map(v => [v.name, v.cat, v.contact || "", v.total || 0, v.dp || 0, v.dpDate || "", v.dpPaid ? "Ya" : "Belum", v.final || 0, v.finalDate || "", v.finalPaid ? "Ya" : "Belum"])]],
   tamu: ["Tamu", "daftar-tamu.csv", () => [["Nama", "Jumlah orang", "Pihak", "Status", "Amplop"], ...[...S.guests].sort(byOrd).map(g => [g.name, g.n, SIDES[g.side] || "", (STAT[g.status] || [""])[0], g.amplop || 0])]],
   seserahan: ["Seserahan", "seserahan-mahar.csv", () => [["Barang", "Jenis", "Harga", "Status"], ...[...S.seserahan].sort(byOrd).map(x => [x.name, x.kind, x.price || 0, SES_STATUS[x.status] || ""])]],
@@ -823,6 +886,7 @@ document.addEventListener("change", e => {
   else if (el.dataset.b) write(() => db.doc("budget/" + el.dataset.b).update({ [el.dataset.f]: el.dataset.f === "name" || el.dataset.f === "payer" ? el.value : (+el.value || 0) }));
   else if (el.dataset.ga) write(() => db.doc("guests/" + el.dataset.ga).update({ amplop: +el.value || 0 }));
   else if (el.dataset.gs) write(() => db.doc("guests/" + el.dataset.gs).update({ status: el.value }));
+  else if (el.dataset.tg) setMeta({ targets: { [el.dataset.tg]: +el.value || 0 } });
   else if (el.dataset.rs) write(() => db.doc("refs/" + el.dataset.rs).update({ status: el.value }));
   else if (el.dataset.v) write(() => db.doc("vendors/" + el.dataset.v).update({ [el.dataset.f]: val(el) }));
   else if (el.dataset.s) write(() => db.doc("seserahan/" + el.dataset.s).update({ [el.dataset.f]: val(el) }));
@@ -839,6 +903,12 @@ document.addEventListener("submit", async e => {
   } else if (id === "addguest") {
     const f = { name: $("gn").value.trim(), n: Math.max(1, +$("gc").value || 1), side: $("gside").value, status: "belum", ord: Date.now() };
     e.target.reset(); write(() => col("guests").doc(uid()).set(f));
+  } else if (id === "addmasuk") {
+    const f = { type: "masuk", party: $("mpihak").value, amount: +$("mjml").value || 0, date: $("mtgl").value || isoToday(), note: $("mcat").value.trim(), by: me || "", ord: Date.now() };
+    if (f.amount > 0) { e.target.reset(); write(() => col("ledger").doc(uid()).set(f)); }
+  } else if (id === "addkeluar") {
+    const f = { type: "keluar", budgetId: $("kpos").value, amount: +$("kjml").value || 0, date: $("ktgl").value || isoToday(), note: $("kcat").value.trim(), by: me || "", ord: Date.now() };
+    if (f.amount > 0) { e.target.reset(); write(() => col("ledger").doc(uid()).set(f)); }
   } else if (id === "addvendor") {
     const f = { name: $("vn").value.trim(), cat: $("vc").value, total: +$("vt").value || 0, ord: Date.now() };
     e.target.reset(); write(() => col("vendors").doc(uid()).set(f));
