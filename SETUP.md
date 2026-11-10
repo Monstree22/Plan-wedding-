@@ -1,6 +1,6 @@
 # Pasang Rencana Nikah di Vercel (tanpa Claude)
 
-Aplikasi ini situs statis. Data disimpan bersama di Firebase (Firestore) dan dilindungi login email dan kata sandi. Hanya dua email kalian yang bisa masuk.
+Aplikasi ini situs statis. Data disimpan bersama di Firebase (Firestore) dan dilindungi login email dan kata sandi. Hanya dua akun kalian yang bisa masuk.
 
 Kamu butuh akun Google (untuk Firebase), akun Vercel, dan repo GitHub ini. Semua ada paket gratisnya. Cek halaman harga masing-masing karena ketentuannya bisa berubah.
 
@@ -14,7 +14,7 @@ Kamu butuh akun Google (untuk Firebase), akun Vercel, dan repo GitHub ini. Semua
 ## 3. Aktifkan login dan buat dua akun
 1. Menu **Build > Authentication > Get started**.
 2. Tab **Sign-in method**, aktifkan **Email/Password**.
-3. Tab **Users > Add user**, buat dua akun: satu untuk kamu, satu untuk pasangan (email dan kata sandi masing-masing).
+3. Tab **Users > Add user**, buat dua akun. Di kolom email, isi nama pengguna lalu `@rencana.nikah`, misalnya `rafi@rencana.nikah` dan `alya@rencana.nikah`. Kata sandi minimal 6 karakter. Di layar masuk aplikasi, cukup ketik `rafi` atau `alya` (tanpa @).
 4. Kalau ada pengaturan **User actions** di tab Settings, matikan pendaftaran sendiri (sign-up) supaya tidak ada akun baru.
 
 ## 4. Ambil konfigurasi web
@@ -24,7 +24,7 @@ Kamu butuh akun Google (untuk Firebase), akun Vercel, dan repo GitHub ini. Semua
 
 ## 5. Pasang aturan keamanan
 1. Di **Firestore Database > Rules**, tempel isi file `firestore.rules`.
-2. Ganti dua email di dalamnya dengan email akun yang kamu buat di langkah 3, lalu **Publish**.
+2. Ganti dua email di dalamnya dengan akun yang kamu buat di langkah 3 (misalnya `rafi@rencana.nikah`), lalu **Publish**.
 
 Tanpa langkah ini data tidak terlindungi dengan benar, jadi jangan dilewati.
 
@@ -35,7 +35,7 @@ Tanpa langkah ini data tidak terlindungi dengan benar, jadi jangan dilewati.
 4. Vercel hanya memakai branch utama untuk alamat produksi. Kalau kode aplikasi masih ada di branch lain, gabungkan dulu ke branch utama, atau pakai alamat preview yang dibuat Vercel untuk branch itu.
 
 ## 7. Pakai
-1. Buka alamat Vercel, masuk dengan email dan kata sandi.
+1. Buka alamat Vercel, masuk dengan nama pengguna dan kata sandi.
 2. Di HP, buka menu browser lalu **Tambahkan ke layar utama** supaya terasa seperti aplikasi.
 3. Di Ringkasan, isi Data pernikahan, lalu pakai template checklist dan budget.
 

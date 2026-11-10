@@ -13,6 +13,9 @@
     return el;
   }
 
+  // Firebase mewajibkan format email, jadi nama pengguna tanpa "@" diberi domain tetap ini.
+  const toEmail = v => { v = v.trim().toLowerCase(); return v.includes("@") ? v : v + "@rencana.nikah"; };
+
   function showSetup() {
     box('<h1>Rencana Nikah</h1><div class="card"><h2>Belum terhubung</h2><p class="sub">Aplikasi belum tersambung ke Firebase. Isi <b>firebase-config.js</b> mengikuti langkah di <b>SETUP.md</b>, lalu muat ulang halaman ini.</p></div>');
   }
@@ -20,16 +23,16 @@
   function showLogin() {
     return new Promise(resolve => {
       const el = box('<h1>Rencana Nikah</h1><form class="card" id="loginform"><h2>Masuk</h2>' +
-        '<label>Email<input id="lemail" type="email" autocomplete="username" required></label>' +
+        '<label>Nama pengguna<input id="lemail" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" required></label>' +
         '<label>Kata sandi<input id="lpass" type="password" autocomplete="current-password" required></label>' +
         '<div class="err" id="lerr" role="alert"></div><button class="btn" id="lbtn">Masuk</button></form>');
       el.querySelector("#loginform").addEventListener("submit", async e => {
         e.preventDefault();
         const btn = $("lbtn"); btn.disabled = true; $("lerr").textContent = "";
-        try { await auth.signInWithEmailAndPassword($("lemail").value.trim(), $("lpass").value); resolve(); }
+        try { await auth.signInWithEmailAndPassword(toEmail($("lemail").value), $("lpass").value); resolve(); }
         catch (x) {
           btn.disabled = false;
-          $("lerr").textContent = /network/i.test(x.code || "") ? "Tidak ada koneksi internet." : "Email atau kata sandi salah.";
+          $("lerr").textContent = /network/i.test(x.code || "") ? "Tidak ada koneksi internet." : "Nama pengguna atau kata sandi salah.";
         }
       });
     });
