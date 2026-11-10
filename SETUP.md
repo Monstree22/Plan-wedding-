@@ -44,3 +44,18 @@ Tanpa langkah ini data tidak terlindungi dengan benar, jadi jangan dilewati.
 - Referensi memakai tautan saja, tidak ada unggah foto.
 - Versi lama untuk Claude tersimpan di folder `legacy/`.
 - Untuk menguji tanpa Firebase, buka `index.html`: akan muncul layar "Belum terhubung".
+- Semua pustaka pihak ketiga ada di folder `vendor/` (lihat `vendor/README.md`), jadi halaman tidak memuat skrip dari CDN.
+
+## Keamanan (kerjakan semua)
+
+Keamanan data bergantung pada empat hal. Tiga di antaranya kamu atur sendiri di konsol Firebase dan Google.
+
+1. **Aturan Firestore harus yang terbaru.** Tempel isi `firestore.rules` di Firestore > Rules, ganti dua email, lalu Publish. Aturan ini hanya mengizinkan dua akun kalian dan hanya pada koleksi milik aplikasi.
+2. **Matikan pendaftaran sendiri.** Authentication > Settings > User actions, matikan **Enable create (sign-up)**. Kalau opsi itu tidak ada di layarmu, aturan nomor 1 tetap melindungi data.
+3. **Batasi kunci API.** Di https://console.cloud.google.com > APIs & Services > Credentials, buka kunci "Browser key" proyek ini. Di **Application restrictions** pilih **Websites** dan isi alamat Vercel kamu (misalnya `https://planwedding-monskyy.vercel.app/*`). Di **API restrictions** pilih **Restrict key** lalu centang hanya Identity Toolkit API, Token Service API, dan Cloud Firestore API.
+4. **Kata sandi dan akun.**
+   - Pakai kata sandi yang panjang (12 karakter atau lebih) dan berbeda dari akun lain.
+   - Aktifkan verifikasi 2 langkah di akun Google (Firebase), GitHub, dan Vercel. Siapa pun yang menguasai salah satunya bisa mengubah aplikasi atau datanya.
+   - Tidak ada reset kata sandi lewat email. Kalau lupa, ubah lewat Authentication > Users di konsol.
+
+Perlindungan lain sudah ada di kode: semua teks dari database di-escape sebelum ditampilkan, id dan angka dari database divalidasi, tautan hanya http atau https, dan `vercel.json` memasang kebijakan keamanan konten (CSP) serta header anti-iframe. Setelah deploy, cek bahwa login masih berjalan. Kalau layar Masuk tidak bisa dipakai setelah perubahan keamanan, hapus `vercel.json` sementara dan kabari pengelola kode.

@@ -4,4 +4,5 @@ Aplikasi perencana lamaran dan pernikahan untuk berdua: checklist dengan tenggat
 
 - Langkah pasang: [SETUP.md](SETUP.md)
 - Rencana awal (dokumen): [RENCANA-LAMARAN-DAN-WEDDING.md](RENCANA-LAMARAN-DAN-WEDDING.md)
-- Berkas utama: `index.html`, `platform.js` (login dan penyimpanan Firebase), `firebase-config.js`, `firestore.rules`
+- Berkas utama: `index.html`, `app.js`, `platform.js` (login dan penyimpanan Firebase), `firebase-config.js`, `firestore.rules`, `vercel.json` (header keamanan)
+- Pustaka pihak ketiga disimpan lokal di `vendor/`

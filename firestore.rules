@@ -1,16 +1,27 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Hanya dua akun ini yang boleh membaca dan menulis. Ganti dengan email kalian berdua.
+
+    // Hanya dua akun ini yang boleh masuk. Ganti dengan email akun kalian berdua.
     function diizinkan() {
       return request.auth != null
         && request.auth.token.email in [
-          "EMAIL_KAMU@gmail.com",
-          "EMAIL_PASANGAN@gmail.com"
+          "EMAIL_KAMU@wedding.planner",
+          "EMAIL_PASANGAN@wedding.planner"
         ];
     }
-    match /{document=**} {
-      allow read, write: if diizinkan();
+
+    // Profil nama: boleh dibaca keduanya, tapi hanya diubah oleh pemiliknya.
+    match /users/{uid} {
+      allow read: if diizinkan();
+      allow write: if diizinkan() && request.auth.uid == uid;
+    }
+
+    // Koleksi data aplikasi. Koleksi lain ditolak.
+    match /{koleksi}/{dokumen} {
+      allow read, write: if diizinkan()
+        && koleksi in ['tasks', 'budget', 'guests', 'refs', 'votes', 'vendors',
+                       'seserahan', 'rundown', 'journal', 'ledger', 'meta'];
     }
   }
 }
