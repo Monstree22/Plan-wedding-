@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Hanya dua akun ini yang boleh membaca dan menulis. Ganti dengan email kalian berdua.
+    function diizinkan() {
+      return request.auth != null
+        && request.auth.token.email in [
+          "EMAIL_KAMU@gmail.com",
+          "EMAIL_PASANGAN@gmail.com"
+        ];
+    }
+    match /{document=**} {
+      allow read, write: if diizinkan();
+    }
+  }
+}
