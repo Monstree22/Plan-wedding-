@@ -624,9 +624,21 @@ function vKeuangan() {
   </div>`;
 }
 
+const VENDOR_SYNC = ["dpPaid", "finalPaid", "dp", "final", "dpDate", "finalDate", "budgetId", "name"];
+async function syncVendorLedger(id, patch) {
+  const base = S.vendors.find(v => v.id === id); if (!base) return;
+  const v = { ...base, ...patch };
+  for (const [k, label] of [["dp", "DP"], ["final", "Pelunasan"]]) {
+    const lid = "v_" + id + "_" + k, amt = +v[k] || 0, ex = S.ledger.find(l => l.id === lid);
+    if (v[k + "Paid"] && amt > 0) {
+      await db.doc("ledger/" + lid).set({ type: "keluar", budgetId: v.budgetId || "", amount: amt, date: v[k + "Date"] || (ex && ex.date) || isoToday(), note: label + " " + v.name, vendorId: id, kind: k, by: (ex && ex.by) || me || "", ord: (ex && ex.ord) || Date.now() });
+    } else if (ex) await db.doc("ledger/" + lid).delete();
+  }
+}
 function vVendor() {
-  if (state === "ready" && !S.loaded.vendors) return loading();
+  if (state === "ready" && !(S.loaded.vendors && S.loaded.ledger && S.loaded.budget)) return loading();
   const vs = [...S.vendors].sort(byOrd), t = today(), dues = payDues();
+  const unsynced = vs.some(v => ["dp", "final"].some(k => v[k + "Paid"] && +v[k] > 0 && !S.ledger.some(l => l.id === "v_" + v.id + "_" + k)));
   const total = vs.reduce((a, v) => a + (+v.total || 0), 0);
   const paid = vs.reduce((a, v) => a + (v.dpPaid ? +v.dp || 0 : 0) + (v.finalPaid ? +v.final || 0 : 0), 0);
   const dueHtml = dues.length ? dues.map(x => {
@@ -638,13 +650,15 @@ function vVendor() {
     return `<div class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2>${esc(v.name)} <span class="pill">${esc(v.cat)}</span></h2>
       <button class="x" data-del="vendors/${v.id}" ${dis()} aria-label="Hapus vendor">×</button></div>
       <div class="row"><label>Total kontrak (Rp)<input type="number" min="0" data-v="${v.id}" data-f="total" value="${v.total || ""}" ${dis()}></label>
-      <label>Kontak<input data-v="${v.id}" data-f="contact" value="${esc(v.contact || "")}" placeholder="nama / nomor WA" ${dis()}></label></div>
+      <label>Kontak<input data-v="${v.id}" data-f="contact" value="${esc(v.contact || "")}" placeholder="nama / nomor WA" ${dis()}></label>
+      <label>Pos budget<select data-v="${v.id}" data-f="budgetId" ${dis()}><option value="">Tanpa pos</option>${[...S.budget].sort(byOrd).map(b => `<option value="${b.id}" ${v.budgetId === b.id ? "selected" : ""}>${esc(b.name)}</option>`).join("")}</select></label></div>
       ${payRow(v, "dp", "DP")}${payRow(v, "final", "Pelunasan")}
       <p class="sub">Terbayar ${rp(vp)}${v.total ? " · sisa " + rp((+v.total || 0) - vp) : ""}</p></div>`;
   }).join("");
   return `<div class="stack">
     <div class="card"><div class="count"><div><b style="font-size:20px">${rp(total)}</b><span>total kontrak</span></div>
       <div><b style="font-size:20px">${rp(paid)}</b><span>sudah dibayar · sisa ${rp(total - paid)}</span></div></div></div>
+    ${unsynced ? `<div class="card"><p class="sub">Ada pembayaran yang sudah dicentang tapi belum tercatat di Keuangan.</p><div><button class="btn" id="syncv" ${dis()}>Catat ke Keuangan</button></div></div>` : `<p class="sub">Centang DP atau pelunasan akan otomatis mencatat uang keluar di tab Keuangan. Pilih pos budget agar masuk ke pos yang tepat.</p>`}
     <div class="card"><h2>Jatuh tempo</h2>${dueHtml}</div>
     ${cards}
     <form class="card" id="addvendor"><h2>Tambah vendor</h2><div class="row">
@@ -839,7 +853,7 @@ async function shrink(file) {
 
 /* ---------- aksi ---------- */
 document.addEventListener("click", async e => {
-  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],[data-like],[data-export],#addb,#tpl,#tplb");
+  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],[data-like],[data-export],#syncv,#addb,#tpl,#tplb");
   if (!el) return;
   if (el.dataset.export) {
     exportFile(el.dataset.export);
@@ -861,10 +875,14 @@ document.addEventListener("click", async e => {
     }
     const [c, id] = el.dataset.del.split("/");
     const doc = S.refs.find(r => r.id === id && c === "refs");
+    const led = c === "ledger" ? S.ledger.find(x => x.id === id) : null;
     write(async () => { await db.doc(el.dataset.del).delete(); });
+    if (led && led.vendorId) write(() => db.doc("vendors/" + led.vendorId).update({ [led.kind + "Paid"]: false }));
+    if (c === "vendors") S.ledger.filter(l => l.vendorId === id).forEach(l => write(() => db.doc("ledger/" + l.id).delete()));
     if (c === "refs") S.votes.filter(v => v.ref === id).forEach(v => write(() => db.doc("votes/" + v.id).delete()));
     if (doc && doc.img && assetsApi) { try { await assetsApi.delete(doc.img); } catch (x) {} }
   }
+  else if (el.id === "syncv") write(async () => { for (const v of S.vendors) await syncVendorLedger(v.id, {}); });
   else if (el.id === "addb") write(() => col("budget").doc(uid()).set({ name: "Pos baru", est: 0, act: 0, paid: 0, ord: Date.now() }));
   else if (el.id === "tpl") {
     el.disabled = true; el.textContent = "Menyimpan…";
@@ -888,7 +906,13 @@ document.addEventListener("change", e => {
   else if (el.dataset.gs) write(() => db.doc("guests/" + el.dataset.gs).update({ status: el.value }));
   else if (el.dataset.tg) setMeta({ targets: { [el.dataset.tg]: +el.value || 0 } });
   else if (el.dataset.rs) write(() => db.doc("refs/" + el.dataset.rs).update({ status: el.value }));
-  else if (el.dataset.v) write(() => db.doc("vendors/" + el.dataset.v).update({ [el.dataset.f]: val(el) }));
+  else if (el.dataset.v) {
+    const id = el.dataset.v, f = el.dataset.f, value = val(el);
+    write(async () => {
+      await db.doc("vendors/" + id).update({ [f]: value });
+      if (VENDOR_SYNC.includes(f)) await syncVendorLedger(id, { [f]: value });
+    });
+  }
   else if (el.dataset.s) write(() => db.doc("seserahan/" + el.dataset.s).update({ [el.dataset.f]: val(el) }));
   else if (el.dataset.jr) write(() => db.doc("journal/" + el.dataset.jr).update({ resolved: el.checked }));
   else if (el.dataset.pf) setMeta({ profile: { [el.dataset.pf]: el.value.trim() } });
