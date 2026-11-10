@@ -67,8 +67,7 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent);
 .btn.ghost { background: var(--accent-soft); color: var(--accent); }
 .btn[disabled] { opacity: .5; cursor: default; }
 .x { border: 0; background: none; color: var(--muted); font: 600 18px var(--font-body); cursor: pointer; padding: 4px 8px; border-radius: 6px; }
-.x:hover, .x.armed { color: var(--bad); }
-.x.armed { font-size: 12px; }
+.x:hover { color: var(--bad); }
 .count { display: flex; gap: 12px; flex-wrap: wrap; }
 .count div { flex: 1 1 120px; background: var(--accent-soft); border-radius: 10px; padding: 12px; }
 .count b { display: block; font: 700 28px var(--font-display); color: var(--accent); font-variant-numeric: tabular-nums; }
@@ -137,6 +136,8 @@ details summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 .entry p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .entry.done p { text-decoration: line-through; color: var(--muted); }
 .exports { display: flex; gap: 8px; flex-wrap: wrap; }
+.snack { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: 560px; margin: 0 auto; background: var(--fg); color: var(--bg); padding: 12px 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; z-index: 40; box-shadow: 0 6px 20px rgba(0,0,0,.25); font-size: 14px; }
+.snack .linkbtn { color: var(--bg); opacity: .95; font-weight: 700; }
 .trow { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
 .trow:first-of-type { border-top: 0; }
 .th { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -168,6 +169,7 @@ img { max-width: 100%; }
     <button class="linkbtn" id="logout" type="button" hidden>Keluar</button>
   </header>
   <div class="notice" id="notice" hidden></div>
+  <div class="snack" id="toast" role="status" hidden></div>
   <nav class="tabs" role="tablist" id="tabs"></nav>
   <section id="view"></section>
 </main>
@@ -270,8 +272,15 @@ async function write(fn) {
 }
 const col = n => db.collection(n);
 const setMeta = patch => write(() => db.doc("meta/settings").set(patch, { merge: true }));
-let flashT;
-function flash(msg) { const n = $("notice"); n.textContent = msg; n.hidden = false; clearTimeout(flashT); flashT = setTimeout(updateNotice, 4000); }
+let toastT, undoFn = null;
+function toast(msg, ms, undo) {
+  const n = $("toast"); undoFn = undo || null;
+  n.innerHTML = "<span></span>" + (undo ? '<button class="linkbtn" id="undo" type="button">Urungkan</button>' : "");
+  n.firstChild.textContent = msg; n.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { n.hidden = true; undoFn = null; }, ms);
+}
+const flash = msg => toast(msg, 4500);
+const flashUndo = (msg, fn) => toast(msg, 8000, fn);
 function updateNotice() {
   const n = $("notice");
   const msg = denied ? "Akses ke data ditolak. Pastikan aturan Firestore sudah dipublikasikan dan akun ini terdaftar di dalamnya (SETUP.md langkah 5)."
@@ -477,13 +486,13 @@ function vBudget() {
       <tbody>${items.map(b => `<tr>
         <td><input data-b="${b.id}" data-f="name" value="${esc(b.name)}" ${dis()} aria-label="Nama pos"></td>
         <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="est" value="${b.est || ""}" ${dis()} aria-label="Estimasi"></td>
-        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="act" value="${b.act || ""}" placeholder="${vendorTotal(b) ? "Vendor " + vendorTotal(b) : ""}" ${dis()} aria-label="Aktual"></td>
+        <td><input class="num" type="number" min="0" data-b="${b.id}" data-f="act" value="${b.act || ""}" placeholder="${linkedOf(b) ? "Otomatis " + linkedOf(b) : ""}" ${dis()} aria-label="Aktual"></td>
         <td class="num" style="padding:4px 8px">${rp(paidOf(b))}</td>
         <td><select data-b="${b.id}" data-f="payer" ${dis()} aria-label="Ditanggung oleh">${Object.entries(PAYERS).map(([k, n]) => `<option value="${k}" ${(b.payer || "bersama") === k ? "selected" : ""}>${n}</option>`).join("")}</select></td>
         <td><button class="x" data-del="budget/${b.id}" ${dis()} aria-label="Hapus pos">×</button></td></tr>`).join("")}</tbody>
       </table></div>` : `<div class="empty"><span>Belum ada pos budget.</span><button class="btn" id="tplb" ${dis()}>Pakai 9 pos standar</button></div>`}
       <div><button class="btn ghost" id="addb" ${dis()}>Tambah pos</button></div>
-      <p class="sub">Biaya memakai angka Aktual. Kalau kosong, memakai total kontrak vendor yang dikaitkan ke pos ini, lalu Estimasi. Kolom Dibayar terisi otomatis dari catatan uang keluar di tab Keuangan.</p>
+      <p class="sub">Biaya memakai angka Aktual. Kalau kosong, memakai total kontrak vendor dan harga seserahan yang dikaitkan ke pos ini, lalu Estimasi. Kolom Dibayar terisi otomatis dari catatan uang keluar di tab Keuangan.</p>
     </div>
   </div>`;
 }
@@ -582,8 +591,11 @@ function payRow(v, k, label) {
 }
 const isoToday = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
 const paidOf = b => S.ledger.filter(l => l.type === "keluar" && l.budgetId === b.id).reduce((a, l) => a + (+l.amount || 0), 0);
+const sesPos = () => S.meta.sesPos === "none" ? "" : (S.meta.sesPos || autoPos("Seserahan"));
+const seserahanTotal = b => sesPos() === b.id ? S.seserahan.reduce((a, x) => a + (+x.price || 0), 0) : 0;
 const vendorTotal = b => S.vendors.filter(v => v.budgetId === b.id).reduce((a, v) => a + (+v.total || 0), 0);
-const actOf = b => (+b.act) || vendorTotal(b);
+const linkedOf = b => vendorTotal(b) + seserahanTotal(b);
+const actOf = b => (+b.act) || linkedOf(b);
 const costOf = b => actOf(b) || (+b.est) || 0;
 function kas() {
   const sum = (type, pred) => S.ledger.filter(l => l.type === type && (!pred || pred(l))).reduce((a, l) => a + (+l.amount || 0), 0);
@@ -686,8 +698,15 @@ function vVendor() {
       <button class="btn" ${dis()}>Tambah</button></div></form>
   </div>`;
 }
+async function syncSeserahanLedger(id, patch, pos) {
+  const base = S.seserahan.find(x => x.id === id); if (!base) return;
+  const x = { ...base, ...patch }, lid = "s_" + id, ex = S.ledger.find(l => l.id === lid);
+  if ((x.status === "dibeli" || x.status === "dihias") && +x.price > 0) {
+    await db.doc("ledger/" + lid).set({ type: "keluar", budgetId: pos === undefined ? sesPos() : pos, amount: +x.price, date: (ex && ex.date) || isoToday(), note: "Seserahan: " + x.name, seserahanId: id, sstatus: x.status, by: (ex && ex.by) || me || "", ord: (ex && ex.ord) || Date.now() });
+  } else if (ex) await db.doc("ledger/" + lid).delete();
+}
 function vSeserahan() {
-  if (state === "ready" && !S.loaded.seserahan) return loading();
+  if (state === "ready" && !(S.loaded.seserahan && S.loaded.budget && S.loaded.meta && S.loaded.ledger)) return loading();
   const it = [...S.seserahan].sort(byOrd);
   const n = s => it.filter(x => x.status === s).length;
   const sum = it.reduce((a, x) => a + (+x.price || 0), 0);
@@ -698,6 +717,8 @@ function vSeserahan() {
   return `<div class="stack">
     <div class="card"><div class="count"><div><b>${it.length}</b><span>barang · ${n("dibeli")} dibeli · ${n("dihias")} dihias</span></div>
       <div><b style="font-size:20px">${rp(sum)}</b><span>total harga</span></div></div></div>
+    <div class="card"><label>Masuk ke pos budget<select id="sespos" ${dis()}>${[...S.budget].sort(byOrd).map(b => `<option value="${b.id}" ${sesPos() === b.id ? "selected" : ""}>${esc(b.name)}</option>`).join("")}<option value="none" ${sesPos() === "" ? "selected" : ""}>Tanpa pos</option></select></label>
+      <p class="sub">Total harga seserahan dan mahar masuk ke biaya pos ini di Budget. Tandai Sudah dibeli atau Sudah dihias untuk mencatat uang keluarnya di Keuangan secara otomatis.</p></div>
     <div class="card"><h2>Seserahan dan mahar</h2>${rows || `<p class="empty">Belum ada barang. Mulai dari mahar, perlengkapan ibadah, atau busana.</p>`}</div>
     <form class="card" id="addses"><h2>Tambah barang</h2><div class="row">
       <label style="flex-basis:100%">Nama barang<input id="sn" required placeholder="mis. Set perhiasan, mukena, tas" ${dis()}></label>
@@ -871,7 +892,7 @@ async function shrink(file) {
 
 /* ---------- aksi ---------- */
 document.addEventListener("click", async e => {
-  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],[data-like],[data-export],[data-tovendor],#syncv,#addb,#tpl,#tplb");
+  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],[data-like],[data-export],[data-tovendor],#undo,#syncv,#addb,#tpl,#tplb");
   if (!el) return;
   if (el.dataset.export) {
     exportFile(el.dataset.export);
@@ -890,20 +911,29 @@ document.addEventListener("click", async e => {
   else if (el.dataset.rc) { refCat = el.dataset.rc; view(); }
   else if (el.dataset.rst) { refStatus = el.dataset.rst; view(); }
   else if (el.dataset.del) {
-    if (!el.classList.contains("armed")) {
-      el.classList.add("armed"); el.textContent = "Hapus?";
-      setTimeout(() => { if (el.isConnected) { el.classList.remove("armed"); el.textContent = "×"; } }, 3000);
-      return;
-    }
     const [c, id] = el.dataset.del.split("/");
-    const doc = S.refs.find(r => r.id === id && c === "refs");
-    const led = c === "ledger" ? S.ledger.find(x => x.id === id) : null;
-    write(async () => { await db.doc(el.dataset.del).delete(); });
-    if (led && led.vendorId) write(() => db.doc("vendors/" + led.vendorId).update({ [led.kind + "Paid"]: false }));
-    if (c === "vendors") S.ledger.filter(l => l.vendorId === id).forEach(l => write(() => db.doc("ledger/" + l.id).delete()));
-    if (c === "refs") S.votes.filter(v => v.ref === id).forEach(v => write(() => db.doc("votes/" + v.id).delete()));
-    if (doc && doc.img && assetsApi) { try { await assetsApi.delete(doc.img); } catch (x) {} }
+    const item = (S[c] || []).find(x => x.id === id); if (!item) return;
+    const strip = o => { const { id: _i, ...rest } = o; return rest; };
+    const restore = [[el.dataset.del, strip(item)]];
+    const ledgers = c === "vendors" ? S.ledger.filter(l => l.vendorId === id) : c === "seserahan" ? S.ledger.filter(l => l.seserahanId === id) : [];
+    const votes = c === "refs" ? S.votes.filter(v => v.ref === id) : [];
+    ledgers.forEach(l => restore.push(["ledger/" + l.id, strip(l)]));
+    votes.forEach(v => restore.push(["votes/" + v.id, strip(v)]));
+    let flag = null;
+    if (c === "ledger" && item.vendorId) flag = ["vendors/" + item.vendorId, { [item.kind + "Paid"]: true }, { [item.kind + "Paid"]: false }];
+    if (c === "ledger" && item.seserahanId) flag = ["seserahan/" + item.seserahanId, { status: item.sstatus || "dibeli" }, { status: "belum" }];
+    write(async () => {
+      await db.doc(el.dataset.del).delete();
+      for (const l of ledgers) await db.doc("ledger/" + l.id).delete();
+      for (const v of votes) await db.doc("votes/" + v.id).delete();
+      if (flag) await db.doc(flag[0]).update(flag[2]).catch(() => {});
+    });
+    flashUndo("Dihapus.", () => write(async () => {
+      for (const [path, data] of restore) await db.doc(path).set(data);
+      if (flag) await db.doc(flag[0]).update(flag[1]).catch(() => {});
+    }));
   }
+  else if (el.id === "undo") { const f = undoFn; undoFn = null; $("toast").hidden = true; if (f) { f(); flash("Dikembalikan."); } }
   else if (el.id === "syncv") write(async () => { for (const v of S.vendors) await syncVendorLedger(v.id, {}); });
   else if (el.id === "addb") write(() => col("budget").doc(uid()).set({ name: "Pos baru", est: 0, act: 0, paid: 0, ord: Date.now() }));
   else if (el.id === "tpl") {
@@ -922,6 +952,11 @@ document.addEventListener("change", e => {
   if (el.id === "dl") setMeta({ lamaran: el.value });
   else if (el.id === "dw") setMeta({ wedding: el.value });
   else if (el.id === "bt") setMeta({ target: +el.value || 0 });
+  else if (el.id === "sespos") write(async () => {
+    const v = el.value, pos = v === "none" ? "" : v;
+    await db.doc("meta/settings").set({ sesPos: v }, { merge: true });
+    for (const x of S.seserahan) await syncSeserahanLedger(x.id, {}, pos);
+  });
   else if (el.dataset.done) write(() => db.doc("tasks/" + el.dataset.done).update({ done: el.checked }));
   else if (el.dataset.b) write(() => db.doc("budget/" + el.dataset.b).update({ [el.dataset.f]: el.dataset.f === "name" || el.dataset.f === "payer" ? el.value : (+el.value || 0) }));
   else if (el.dataset.ga) write(() => db.doc("guests/" + el.dataset.ga).update({ amplop: +el.value || 0 }));
@@ -935,7 +970,10 @@ document.addEventListener("change", e => {
       if (VENDOR_SYNC.includes(f)) await syncVendorLedger(id, { [f]: value });
     });
   }
-  else if (el.dataset.s) write(() => db.doc("seserahan/" + el.dataset.s).update({ [el.dataset.f]: val(el) }));
+  else if (el.dataset.s) {
+    const id = el.dataset.s, f = el.dataset.f, value = val(el);
+    write(async () => { await db.doc("seserahan/" + id).update({ [f]: value }); if (f === "status" || f === "price") await syncSeserahanLedger(id, { [f]: value }); });
+  }
   else if (el.dataset.jr) write(() => db.doc("journal/" + el.dataset.jr).update({ resolved: el.checked }));
   else if (el.dataset.pf) setMeta({ profile: { [el.dataset.pf]: el.value.trim() } });
   else if (el.dataset.inv) setMeta({ invite: { [el.dataset.inv]: el.value.trim() } });
