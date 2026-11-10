@@ -2,7 +2,8 @@
    Aplikasi memanggil claude.use("db" | "user" | "downloads"); di sini semuanya dijawab oleh Firebase dan browser. */
 (function () {
   const cfg = window.FIREBASE_CONFIG || {};
-  const configured = !!(cfg.apiKey && !/^ISI/.test(cfg.apiKey) && window.firebase);
+  const filled = !!(cfg.apiKey && !/^ISI/.test(cfg.apiKey));
+  const configured = filled && !!window.firebase;
   const $ = id => document.getElementById(id);
   let auth = null, fs = null, dbPromise = null;
 
@@ -16,8 +17,11 @@
   // Firebase mewajibkan format email, jadi nama pengguna tanpa "@" diberi domain tetap ini.
   const toEmail = v => { v = v.trim().toLowerCase(); return v.includes("@") ? v : v + "@wedding.planner"; };
 
-  function showSetup() {
-    box('<h1>Rencana Nikah</h1><div class="card"><h2>Belum terhubung</h2><p class="sub">Aplikasi belum tersambung ke Firebase. Isi <b>firebase-config.js</b> mengikuti langkah di <b>SETUP.md</b>, lalu muat ulang halaman ini.</p></div>');
+  function showSetup(detail) {
+    if (!detail) detail = !filled ? "Berkas firebase-config.js belum berisi konfigurasi (masih ISI_DI_SINI atau kosong)."
+      : !window.firebase ? "Pustaka Firebase gagal dimuat dari internet. Periksa koneksi, atau matikan pemblokir iklan untuk situs ini, lalu muat ulang."
+      : "Firebase gagal dimulai.";
+    box('<h1>Rencana Nikah</h1><div class="card"><h2>Belum terhubung</h2><p class="sub">Aplikasi belum tersambung ke Firebase. Langkah pasang ada di <b>SETUP.md</b>.</p><p class="err" style="min-height:0">' + detail.replace(/[<>&]/g, "") + '</p></div>');
   }
 
   function showLogin() {
@@ -46,7 +50,7 @@
     if (dbPromise) return dbPromise;
     dbPromise = (async () => {
       if (!configured) { showSetup(); return null; }
-      try { firebase.initializeApp(cfg); auth = firebase.auth(); fs = firebase.firestore(); } catch (e) { showSetup(); return null; }
+      try { firebase.initializeApp(cfg); auth = firebase.auth(); fs = firebase.firestore(); } catch (e) { showSetup('Firebase gagal dimulai: ' + (e && e.message || e)); return null; }
       try { await fs.enablePersistence({ synchronizeTabs: true }); } catch (e) {}
       let u = await currentUser();
       if (!u) { await showLogin(); u = auth.currentUser; }
