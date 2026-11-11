@@ -148,11 +148,14 @@ function schedule() {
   renderTimer = setTimeout(() => {
     renderCountdown();
     const a = document.activeElement;
-    if (a && $("view").contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.type !== "checkbox") { pendingRender = true; return; }
-    view();
+    // Tunda hanya saat seseorang sedang mengetik (isi kolom sudah berubah). Selain itu tampilan langsung diperbarui.
+    const typing = a && $("view").contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName) && !["checkbox", "radio", "button"].includes(a.type) && a.value !== a.defaultValue;
+    if (typing) { pendingRender = true; return; }
+    view(true);
   }, 80);
 }
-document.addEventListener("focusout", () => { if (pendingRender) setTimeout(() => { if (pendingRender && !document.activeElement.matches("input,select,textarea")) { pendingRender = false; view(); } }, 50); });
+document.addEventListener("focusout", () => { if (pendingRender) setTimeout(schedule, 60); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) schedule(); });
 
 async function init() {
   view();
@@ -187,11 +190,21 @@ function renderTabs() {
   const on = strip.querySelector('[aria-selected="true"]');
   if (on) { const a = on.getBoundingClientRect(), b = strip.getBoundingClientRect(); if (a.left < b.left || a.right > b.right) strip.scrollLeft += a.left - b.left - (strip.clientWidth - a.width) / 2; }
 }
-function view() {
+const FOCUS_KEYS = ["b", "v", "s", "ga", "gs", "tg", "rs", "inv", "pf", "done", "jr", "like"];
+function focusKey(a) {
+  if (!a || !$("view").contains(a)) return null;
+  if (a.id) return "#" + a.id;
+  const k = Object.keys(a.dataset).find(x => FOCUS_KEYS.includes(x));
+  if (!k) return null;
+  return "[data-" + k.replace(/[A-Z]/g, m => "-" + m.toLowerCase()) + '="' + a.dataset[k] + '"]' + (a.dataset.f ? '[data-f="' + a.dataset.f + '"]' : "");
+}
+function view(keepFocus) {
   pendingRender = false;
+  const fk = keepFocus ? focusKey(document.activeElement) : null;
   renderCountdown(); renderTabs();
   $("view").innerHTML = ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, keuangan: vKeuangan, tamu: vTamu, referensi: vReferensi, vendor: vVendor, seserahan: vSeserahan, harih: vHariH, jurnal: vJurnal })[tab]();
   resolveNames();
+  if (fk) { try { const el = document.querySelector(fk); if (el) el.focus({ preventScroll: true }); } catch (e) {} }
 }
 const dis = () => canWrite && db ? "" : "disabled";
 const loading = () => `<p class="empty">Memuat data…</p>`;
