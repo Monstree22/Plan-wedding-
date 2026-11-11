@@ -50,7 +50,7 @@ const MASUK_PIHAK = { ...PAYERS, lain: "Lainnya" };
 const STAT = { belum: ["Belum dikirim", ""], terkirim: ["Terkirim", "warn"], hadir: ["Hadir", "good"], tidak: ["Tidak hadir", "bad"] };
 
 const S = { meta: { lamaran: "", wedding: "", target: 0 }, tasks: [], budget: [], guests: [], refs: [], votes: [], vendors: [], seserahan: [], rundown: [], journal: [], ledger: [], loaded: {} };
-let denied = false, dlApi = null, db = null, userApi = null, assetsApi = null, canWrite = true, me = null, state = "loading";
+let denied = false, unsynced = false, offline = false, dlApi = null, db = null, userApi = null, assetsApi = null, canWrite = true, me = null, state = "loading";
 let tab = (location.hash || "").slice(1);
 if (!TABS.some(t => t[0] === tab)) tab = "ringkasan";
 let refCat = "Semua", refStatus = "semua", pendingRender = false, profOpen = null;
@@ -82,11 +82,12 @@ const daysTo = iso => iso ? Math.round((new Date(iso + "T00:00:00") - today()) /
 /* ---------- penyimpanan bersama ---------- */
 async function write(fn) {
   if (!db || !canWrite) return;
+  const slow = setTimeout(() => flash("Belum terkirim ke server. Periksa koneksi internet. Perubahan akan dikirim saat tersambung."), 8000);
   try { await fn(); } catch (e) {
     if (e && e.code === "permission-denied") { denied = true; updateNotice(); }
     else if (e && e.code === "quota_exceeded") flash("Penyimpanan penuh. Hapus beberapa data lama.");
     else flash("Gagal menyimpan. Coba lagi.");
-  }
+  } finally { clearTimeout(slow); }
 }
 const col = n => db.collection(n);
 const setMeta = patch => write(() => db.doc("meta/settings").set(patch, { merge: true }));
@@ -101,12 +102,24 @@ const flash = msg => toast(msg, 4500);
 const flashUndo = (msg, fn) => toast(msg, 8000, fn);
 function updateNotice() {
   const n = $("notice");
-  const msg = denied ? "Akses ke data ditolak. Pastikan aturan Firestore sudah dipublikasikan dan akun ini terdaftar di dalamnya (SETUP.md langkah 5)."
+  const msg = offline ? "Aplikasi belum tersambung ke server data, jadi data yang tampil mungkin belum terbaru dan belum sampai ke pasangan. Periksa koneksi internet, lalu muat ulang."
+    : unsynced ? "Ada perubahan yang belum terkirim ke server, jadi pasangan belum bisa melihatnya. Periksa koneksi internet."
+    : denied ? "Akses ke data ditolak. Pastikan aturan Firestore sudah dipublikasikan dan akun ini terdaftar di dalamnya (SETUP.md langkah 5)."
     : state === "nodb" ? "Belum terhubung ke penyimpanan data. Ikuti langkah di SETUP.md."
     : !canWrite ? "Kamu hanya bisa melihat. Minta akses Contributor atau Editor untuk ikut mengisi." : "";
   n.textContent = msg; n.hidden = !msg;
 }
 
+const pendingKeys = new Set(), cacheKeys = new Set();
+let syncTimer;
+function trackSync(key, snap) {
+  const m = snap.metadata; if (!m) return;
+  if (m.hasPendingWrites) pendingKeys.add(key); else pendingKeys.delete(key);
+  if (m.fromCache) cacheKeys.add(key); else cacheKeys.delete(key);
+  clearTimeout(syncTimer);
+  if (!pendingKeys.size && !cacheKeys.size) { if (unsynced || offline) { unsynced = false; offline = false; updateNotice(); } return; }
+  syncTimer = setTimeout(() => { unsynced = pendingKeys.size > 0; offline = cacheKeys.size > 0; updateNotice(); }, 8000);
+}
 const SAFE_ID = /^[A-Za-z0-9_.~:@+-]+$/;
 const NUM_FIELDS = ["est", "act", "amount", "price", "dp", "final", "total", "amplop", "n", "m", "ord"];
 function cleanDoc(d) {
@@ -116,6 +129,7 @@ function cleanDoc(d) {
 }
 function subscribe(name, key) {
   col(name).onSnapshot(snap => {
+    trackSync(key, snap);
     S[key] = snap.docs.filter(d => SAFE_ID.test(d.id)).map(cleanDoc);
     S.loaded[key] = true; schedule();
   }, e => { S.loaded[key] = true; if (e && e.code === "permission-denied") { denied = true; updateNotice(); } schedule(); });
@@ -124,6 +138,7 @@ function subscribeMeta() {
   db.doc("meta/settings").onSnapshot(snap => {
     S.meta = { lamaran: "", wedding: "", target: 0, ...(snap.exists ? snap.data() : {}) };
     S.meta.target = Number(S.meta.target) || 0;
+    trackSync("meta", snap);
     S.loaded.meta = true; schedule();
   }, e => { S.loaded.meta = true; if (e && e.code === "permission-denied") { denied = true; updateNotice(); } schedule(); });
 }
