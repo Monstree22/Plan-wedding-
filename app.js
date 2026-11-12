@@ -179,16 +179,57 @@ async function init() {
 function renderCountdown() {
   const parts = [], l = daysTo(S.meta.lamaran), w = daysTo(S.meta.wedding), iv = S.meta.invite || {};
   $("ttl").textContent = iv.pria && iv.wanita ? iv.pria + " & " + iv.wanita : "Rencana Nikah";
+  $("mono").textContent = iv.pria && iv.wanita ? (iv.pria[0] + iv.wanita[0]).toUpperCase() : "RN";
   if (l !== null && l >= 0) parts.push("Lamaran " + l + " hari lagi");
   if (w !== null && w >= 0) parts.push("Nikah " + w + " hari lagi");
   $("countdown").textContent = parts.join(" · ") || "Isi tanggal di Ringkasan untuk mulai.";
 }
+const IC = {
+  home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>',
+  check: '<rect x="4" y="4" width="16" height="16" rx="4.5"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
+  wallet: '<path d="M4 7h14a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2V7z"/><path d="M4 7l11-3v3"/><circle cx="16" cy="13.5" r="1.2"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M16.5 14.2c2.8.2 4.5 2.3 4.5 5.3"/>',
+  grid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"/>',
+  pie: '<path d="M12 3a9 9 0 109 9h-9V3z"/><path d="M15.5 3.6A9 9 0 0120.4 8.5H15.5V3.6z"/>',
+  store: '<path d="M4 9l1.5-5h13L20 9"/><path d="M4 9a2.7 2.7 0 005.3 0 2.7 2.7 0 005.4 0A2.7 2.7 0 0020 9"/><path d="M5 12v8h14v-8"/>',
+  heart: '<path d="M12 20s-7.5-4.6-9-9.2C2 7.6 4.2 5 7 5c1.9 0 3.5 1 5 3 1.5-2 3.1-3 5-3 2.8 0 5 2.6 4 5.8-1.5 4.6-9 9.2-9 9.2z"/>',
+  gift: '<rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8"/><path d="M12 8v12"/><path d="M12 8C10 4.5 6.5 4.5 6.5 6.8 6.5 8.2 8.5 8 12 8zM12 8c2-3.5 5.5-3.5 5.5-1.2 0 1.4-2 1.2-5.5 1.2z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  book: '<path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3V4z"/><path d="M5 17a3 3 0 013-3h11"/>',
+  out: '<path d="M9 4H5v16h4"/><path d="M15 8l4 4-4 4"/><path d="M19 12H9"/>'
+};
+const icon = n => '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + IC[n] + "</svg>";
+const NAV = [["ringkasan", "Ringkasan", "home"], ["checklist", "Tugas", "check"], ["keuangan", "Uang", "wallet"], ["tamu", "Tamu", "users"]];
+const MORE = [["budget", "Budget", "pie"], ["vendor", "Vendor", "store"], ["referensi", "Referensi", "heart"], ["seserahan", "Seserahan", "gift"], ["harih", "Hari-H", "clock"], ["jurnal", "Jurnal", "book"]];
+const TITLES = { checklist: "Tugas", budget: "Budget", keuangan: "Keuangan", vendor: "Vendor", tamu: "Tamu", referensi: "Referensi", seserahan: "Seserahan", harih: "Hari-H", jurnal: "Jurnal" };
+const NAV_OF = { budget: "keuangan" };
 function renderTabs() {
-  const strip = $("tabs"), left = strip.scrollLeft;
-  strip.innerHTML = TABS.map(([k, n]) => `<button role="tab" aria-selected="${k === tab}" data-tab="${k}">${n}</button>`).join("");
-  strip.scrollLeft = left;
-  const on = strip.querySelector('[aria-selected="true"]');
-  if (on) { const a = on.getBoundingClientRect(), b = strip.getBoundingClientRect(); if (a.left < b.left || a.right > b.right) strip.scrollLeft += a.left - b.left - (strip.clientWidth - a.width) / 2; }
+  const here = NAV_OF[tab] || tab, inMore = MORE.some(m => m[0] === tab) && tab !== "budget";
+  $("nav").innerHTML = NAV.map(([k, n, ic]) => `<button data-tab="${k}" ${here === k ? 'aria-current="page"' : ""}>${icon(ic)}<span>${n}</span></button>`).join("")
+    + `<button data-sheet="open" ${inMore ? 'aria-current="page"' : ""} aria-haspopup="dialog">${icon("grid")}<span>Lainnya</span></button>`;
+  const sh = $("sheet");
+  if (!sh.firstChild) {
+    sh.innerHTML = '<div class="bg" data-sheet="close"></div><div class="panel" role="dialog" aria-label="Menu lainnya"><div class="grip"></div><div class="sgrid">'
+      + MORE.map(([k, n, ic]) => `<button data-tab="${k}">${icon(ic)}<span>${n}</span></button>`).join("")
+      + '</div><button class="linkbtn" id="logout" type="button" hidden>' + icon("out") + "Keluar</button></div>";
+  }
+  sh.querySelectorAll("[data-tab]").forEach(b => { if (b.dataset.tab === tab) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+}
+function setSheet(open) {
+  const sh = $("sheet"); sh.classList.toggle("open", open); sh.setAttribute("aria-hidden", open ? "false" : "true");
+  if (open) { const f = sh.querySelector(".sgrid button"); if (f) f.focus({ preventScroll: true }); }
+}
+const openForms = new Set();
+function decorateForms() {
+  $("view").querySelectorAll("form.card[id^='add']").forEach(f => {
+    if (f.id === "addjournal") return;
+    const h = f.querySelector("h2"), title = h ? h.textContent.trim() : "Tambah";
+    const d = document.createElement("details"), sm = document.createElement("summary");
+    d.className = "addwrap"; d.dataset.form = f.id; sm.textContent = title;
+    if (h) h.remove();
+    f.classList.remove("card"); f.replaceWith(d); d.append(sm, f);
+    if (openForms.has(f.id)) d.open = true;
+  });
 }
 const FOCUS_KEYS = ["b", "v", "s", "ga", "gs", "tg", "rs", "inv", "pf", "done", "jr", "like"];
 function focusKey(a) {
@@ -202,7 +243,10 @@ function view(keepFocus) {
   pendingRender = false;
   const fk = keepFocus ? focusKey(document.activeElement) : null;
   renderCountdown(); renderTabs();
-  $("view").innerHTML = ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, keuangan: vKeuangan, tamu: vTamu, referensi: vReferensi, vendor: vVendor, seserahan: vSeserahan, harih: vHariH, jurnal: vJurnal })[tab]();
+  const seg = tab === "budget" || tab === "keuangan" ? `<div class="seg" role="group" aria-label="Uang"><button data-tab="keuangan" aria-pressed="${tab === "keuangan"}">Keuangan</button><button data-tab="budget" aria-pressed="${tab === "budget"}">Budget</button></div>` : "";
+  const head = tab === "ringkasan" ? "" : `<div class="ptitle"><h2>${TITLES[tab]}</h2></div>` + seg;
+  $("view").innerHTML = head + ({ ringkasan: vRingkasan, checklist: vChecklist, budget: vBudget, keuangan: vKeuangan, tamu: vTamu, referensi: vReferensi, vendor: vVendor, seserahan: vSeserahan, harih: vHariH, jurnal: vJurnal })[tab]();
+  decorateForms();
   resolveNames();
   if (fk) { try { const el = document.querySelector(fk); if (el) el.focus({ preventScroll: true }); } catch (e) {} }
 }
@@ -220,16 +264,7 @@ function vRingkasan() {
   return `<div class="stack">
     ${hero()}
     ${profileCard()}
-    <div class="card">
-      <h2>Progres</h2>
-      <div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
-      <div class="count">
-        <div><b>${done}/${total}</b><span>tugas selesai</span></div>
-        <div><b>${S.guests.length}</b><span>undangan · ${hadir} orang konfirmasi hadir${(S.meta.profile || {}).tamu ? " · target " + esc(S.meta.profile.tamu) : ""}</span></div>
-        <div><b style="font-size:20px">${rp(paid)}</b><span>sudah dibayar dari ${rp(act)}</span></div>
-        <div><b style="font-size:20px">${rp(kas().saldo)}</b><span>saldo kas${kas().biaya ? (kas().selisih >= 0 ? " · dana cukup" : " · dana kurang " + rp(-kas().selisih)) : ""}</span></div>
-      </div>
-    </div>
+    ${ringsCard(done, total, paid, hadir)}
     <div class="card">
       <h2>Tugas terdekat</h2>
       ${next.length ? next.map(({ t, d }) => `<div class="task"><div class="body"><div class="t">${esc(t.t)}</div>
@@ -241,11 +276,21 @@ function vRingkasan() {
   </div>`;
 }
 
+const ring = (p, center, label) => `<div class="ring"><div class="dial"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t" cx="22" cy="22" r="18"/><circle class="v" cx="22" cy="22" r="18" stroke-dasharray="${(Math.max(0, Math.min(1, p)) * 113.1).toFixed(1)} 113.1"/></svg><b>${center}</b></div><span>${label}</span></div>`;
+function ringsCard(done, total, paid, hadir) {
+  const k = kas(), target = +(S.meta.profile || {}).tamu || 0;
+  const pt = total ? done / total : 0, pp = k.biaya ? paid / k.biaya : 0, pg = target ? hadir / target : 0;
+  const note = !k.biaya ? "Isi biaya di Budget" : k.selisih >= 0 ? "Dana cukup untuk sisa tagihan" : "Dana kurang " + rp(-k.selisih);
+  return `<div class="card rings"><h2>Progres</h2><div class="rrow">${ring(pt, done + "/" + total, "Tugas selesai")}${ring(pp, Math.round(Math.min(1, pp) * 100) + "%", "Biaya terbayar")}${ring(pg, hadir, target ? "Hadir dari " + target : "Konfirmasi hadir")}</div>
+    <div class="kas"><span>Saldo kas</span><b class="${k.saldo < 0 ? "over" : ""}">${rp(k.saldo)}</b><em class="${k.biaya && k.selisih < 0 ? "low" : "ok"}">${note}</em></div></div>`;
+}
 const likers = id => new Set(S.votes.filter(v => v.ref === id).map(v => v.by));
 function profileCard() {
   const iv = S.meta.invite || {}, pf = S.meta.profile || {};
   const f = (label, scope, key, type, ph, val) => `<label>${label}<input type="${type || "text"}" data-${scope}="${key}" value="${esc(val)}" placeholder="${esc(ph || "")}" ${dis()}></label>`;
-  const hasNames = !!(iv.pria && iv.wanita), open = profOpen === null ? !hasNames : profOpen;
+  const hasNames = !!(iv.pria && iv.wanita);
+  if (profOpen === null && S.loaded.meta) profOpen = !hasNames;   // diputuskan sekali saat data pertama termuat
+  const open = profOpen === true;
   return `<details class="card" id="prof" ${open ? "open" : ""}>
     <summary><h2 style="display:inline">Data pernikahan</h2> <span class="meta">${hasNames ? esc(iv.pria + " & " + iv.wanita) : "Isi nama dan tanggal dulu"}</span></summary>
     <div class="row" style="margin-top:12px">
@@ -360,7 +405,7 @@ function vTamu() {
   const cost = S.budget.reduce((a, b) => a + costOf(b), 0);
   const rows = gs.map(g => `<div class="task g">
     <div class="body"><div class="t">${esc(g.name)} <span class="meta">· ${esc(g.n)} orang · ${SIDES[g.side] || ""}</span></div></div>
-    <input class="num" type="number" min="0" data-ga="${g.id}" value="${g.amplop || ""}" placeholder="Amplop (Rp)" ${dis()} aria-label="Amplop dari ${esc(g.name)}" style="width:150px">
+    <input class="num" type="number" min="0" data-ga="${g.id}" value="${g.amplop || ""}" placeholder="Amplop" ${dis()} aria-label="Amplop dari ${esc(g.name)}">
     <select data-gs="${g.id}" ${dis()} aria-label="Status ${esc(g.name)}" style="width:auto">${Object.entries(STAT).map(([k, v]) => `<option value="${k}" ${g.status === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
     <button class="x" data-del="guests/${g.id}" ${dis()} aria-label="Hapus tamu">×</button></div>`).join("");
   return `<div class="stack">
@@ -479,10 +524,8 @@ function vKeuangan() {
   const tanpaPos = S.ledger.filter(l => l.type === "keluar" && !items.some(b => b.id === l.budgetId)).reduce((a, l) => a + (+l.amount || 0), 0);
   const status = !k.biaya ? "Isi biaya di tab Budget untuk melihat apakah dana cukup." : k.selisih >= 0 ? "Dana cukup untuk sisa tagihan, lebih " + rp(k.selisih) + "." : "Dana kurang " + rp(-k.selisih) + " untuk sisa tagihan.";
   return `<div class="stack">
-    <div class="card"><div class="count">
-      <div><b style="font-size:20px">${rp(k.masuk)}</b><span>uang masuk${k.amplop ? " · termasuk amplop tamu " + rp(k.amplop) : ""}</span></div>
-      <div><b style="font-size:20px">${rp(k.keluar)}</b><span>uang keluar</span></div>
-      <div><b style="font-size:20px" class="${k.saldo < 0 ? "over" : ""}">${rp(k.saldo)}</b><span>saldo kas</span></div></div>
+    <div class="card cash"><span class="kick">Saldo kas</span><b class="bigamt ${k.saldo < 0 ? "over" : ""}">${rp(k.saldo)}</b>
+      <div class="two"><div><span class="kick">Uang masuk</span><b>${rp(k.masuk)}</b>${k.amplop ? `<em>termasuk amplop ${rp(k.amplop)}</em>` : ""}</div><div><span class="kick">Uang keluar</span><b>${rp(k.keluar)}</b></div></div>
       <p class="sub">Sisa tagihan ${rp(k.sisa)} dari total biaya ${rp(k.biaya)}. ${status}${tanpaPos ? " " + rp(tanpaPos) + " uang keluar belum dikaitkan ke pos budget." : ""}</p></div>
     <div class="card"><h2>Setoran per pihak</h2>${rows}
       <p class="sub">Kolom target kosong memakai saran dari biaya di tab Budget yang ditandai ditanggung pihak itu. Isi angka untuk mengganti.</p></div>
@@ -565,7 +608,7 @@ function vSeserahan() {
   const n = s => it.filter(x => x.status === s).length;
   const sum = it.reduce((a, x) => a + (+x.price || 0), 0);
   const rows = it.map(x => `<div class="task g"><div class="body"><div class="t">${esc(x.name)} <span class="pill">${esc(x.kind)}</span></div></div>
-    <input class="num" type="number" min="0" data-s="${x.id}" data-f="price" value="${x.price || ""}" placeholder="Harga (Rp)" ${dis()} aria-label="Harga ${esc(x.name)}" style="width:150px">
+    <input class="num" type="number" min="0" data-s="${x.id}" data-f="price" value="${x.price || ""}" placeholder="Harga (Rp)" ${dis()} aria-label="Harga ${esc(x.name)}">
     <select data-s="${x.id}" data-f="status" ${dis()} aria-label="Status ${esc(x.name)}" style="width:auto">${Object.entries(SES_STATUS).map(([k, l]) => `<option value="${k}" ${x.status === k ? "selected" : ""}>${l}</option>`).join("")}</select>
     <button class="x" data-del="seserahan/${x.id}" ${dis()} aria-label="Hapus">×</button></div>`).join("");
   return `<div class="stack">
@@ -746,13 +789,15 @@ async function shrink(file) {
 
 /* ---------- aksi ---------- */
 document.addEventListener("click", async e => {
-  const el = e.target.closest("[data-tab],[data-del],[data-rc],[data-rst],[data-like],[data-export],[data-tovendor],#undo,#syncv,#addb,#tpl,#tplb");
+  if (e.target.closest(".addwrap > summary, details#prof > summary")) userToggle = true;
+  const el = e.target.closest("[data-sheet],[data-tab],[data-del],[data-rc],[data-rst],[data-like],[data-export],[data-tovendor],#undo,#syncv,#addb,#tpl,#tplb");
   if (!el) return;
   if (el.dataset.export) {
     exportFile(el.dataset.export);
     return;
   }
-  if (el.dataset.tab) { tab = el.dataset.tab; try { history.replaceState(null, "", "#" + tab); } catch (x) {} view(); window.scrollTo(0, 0); }
+  if (el.dataset.sheet) { setSheet(el.dataset.sheet === "open"); return; }
+  if (el.dataset.tab) { setSheet(false); tab = el.dataset.tab; try { history.replaceState(null, "", "#" + tab); } catch (x) {} view(); window.scrollTo(0, 0); const v = $("view"); v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); }
   else if (el.dataset.like) {
     if (!me) return;
     const vid = el.dataset.like + "__" + me, has = S.votes.some(v => v.id === vid);
@@ -835,6 +880,7 @@ document.addEventListener("change", e => {
 document.addEventListener("submit", async e => {
   e.preventDefault();
   const id = e.target.id;
+  if (id.startsWith("add") && id !== "addref") { openForms.delete(id); toast("Tersimpan.", 2200); }
   if (id === "addtask") {
     const f = { t: $("nt").value.trim(), cat: $("nc").value.trim() || "Acara", ref: $("nr").value, m: +$("nm").value || 0, done: false, ord: Date.now() };
     e.target.reset(); write(() => col("tasks").doc(uid()).set(f));
@@ -872,5 +918,12 @@ document.addEventListener("submit", async e => {
     refCat = "Semua"; refStatus = "semua"; view();
   }
 });
-document.addEventListener("toggle", e => { if (e.target.id === "prof") profOpen = e.target.open; }, true);
+let userToggle = false;
+document.addEventListener("toggle", e => {
+  if (!userToggle) return;
+  userToggle = false;
+  if (e.target.id === "prof") profOpen = e.target.open;
+  else if (e.target.dataset && e.target.dataset.form) { if (e.target.open) openForms.add(e.target.dataset.form); else openForms.delete(e.target.dataset.form); }
+}, true);
+document.addEventListener("keydown", e => { if (e.key === "Escape") setSheet(false); });
 init();
