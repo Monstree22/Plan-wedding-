@@ -250,6 +250,7 @@ function focusKey(a) {
 }
 function view(keepFocus) {
   pendingRender = false;
+  if (keepFocus) $("view").classList.remove("enter");   // efek muncul hanya saat pindah halaman, tidak saat data diperbarui
   const fk = keepFocus ? focusKey(document.activeElement) : null;
   renderCountdown(); renderTabs();
   const seg = tab === "budget" || tab === "keuangan" ? `<div class="seg" role="group" aria-label="Uang"><button data-tab="keuangan" aria-pressed="${tab === "keuangan"}">Keuangan</button><button data-tab="budget" aria-pressed="${tab === "budget"}">Budget</button></div>` : "";
@@ -806,7 +807,7 @@ document.addEventListener("click", async e => {
     return;
   }
   if (el.dataset.sheet) { setSheet(el.dataset.sheet === "open"); return; }
-  if (el.dataset.tab) { setSheet(false); tab = el.dataset.tab; try { history.replaceState(null, "", "#" + tab); } catch (x) {} view(); window.scrollTo(0, 0); const v = $("view"); v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); }
+  if (el.dataset.tab) { setSheet(false); tab = el.dataset.tab; try { history.replaceState(null, "", "#" + tab); } catch (x) {} view(); window.scrollTo(0, 0); const v = $("view"); v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); setTimeout(() => v.classList.remove("enter"), 500); }
   else if (el.dataset.like) {
     if (!me) return;
     const vid = el.dataset.like + "__" + me, has = S.votes.some(v => v.id === vid);
