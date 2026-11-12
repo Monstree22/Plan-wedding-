@@ -128,17 +128,26 @@ function cleanDoc(d) {
   return o;
 }
 function subscribe(name, key) {
-  col(name).onSnapshot(snap => {
+  let first = true;
+  // includeMetadataChanges: supaya status "dari cache" dan "belum terkirim" ikut dilaporkan saat berubah.
+  col(name).onSnapshot({ includeMetadataChanges: true }, snap => {
     trackSync(key, snap);
+    const changed = first || typeof snap.docChanges !== "function" || snap.docChanges().length > 0;
+    first = false;
+    if (!changed) return;   // hanya status sinkron yang berubah, isi data sama
     S[key] = snap.docs.filter(d => SAFE_ID.test(d.id)).map(cleanDoc);
     S.loaded[key] = true; schedule();
   }, e => { S.loaded[key] = true; if (e && e.code === "permission-denied") { denied = true; updateNotice(); } schedule(); });
 }
 function subscribeMeta() {
-  db.doc("meta/settings").onSnapshot(snap => {
-    S.meta = { lamaran: "", wedding: "", target: 0, ...(snap.exists ? snap.data() : {}) };
-    S.meta.target = Number(S.meta.target) || 0;
+  let last = null;
+  db.doc("meta/settings").onSnapshot({ includeMetadataChanges: true }, snap => {
     trackSync("meta", snap);
+    const raw = snap.exists ? snap.data() : {}, sig = JSON.stringify(raw);
+    if (sig === last) return;   // hanya status sinkron yang berubah
+    last = sig;
+    S.meta = { lamaran: "", wedding: "", target: 0, ...raw };
+    S.meta.target = Number(S.meta.target) || 0;
     S.loaded.meta = true; schedule();
   }, e => { S.loaded.meta = true; if (e && e.code === "permission-denied") { denied = true; updateNotice(); } schedule(); });
 }
